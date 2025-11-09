@@ -1,0 +1,191 @@
+專案規格書：Markdown 筆記雲 (Markdown Note Cloud)
+
+1. 專案簡介
+
+本專案旨在建立一個「純前端」的 Markdown 筆記應用程式。使用者可以建立、編輯、刪除筆記，所有內容都會以 Markdown 格式儲存。應用程式將使用 Firebase Firestore 作為即時資料庫，讓資料可以被安全儲存，並為未來的跨裝置同步打下基礎。
+
+2. 核心功能 (MVP)
+
+Firebase 身份驗證：
+
+應用程式啟動時，自動使用 Firebase 匿名登入或 __initial_auth_token 登入，以獲取一個唯一的 userId。
+
+所有筆記都將儲存在該 userId 的私有路径下。
+
+筆記列表：
+
+畫面左側應有一個可滾動的筆記列表。
+
+即時顯示所有筆記的「標題」。
+
+列表頂部有一個「新增筆記」按鈕。
+
+點擊列表中的任一筆記，即可在右側編輯區載入該筆記內容。
+
+筆記編輯器：
+
+一個「標題」輸入欄位。
+
+一個大型 textarea 作為 Markdown 輸入區。
+
+Markdown 即時預覽：
+
+編輯器旁邊（或下方，RWD 考量）應有一個即時預覽畫面。
+
+使用者在 textarea 中輸入的 Markdown 語法，會被即時轉換為漂亮的 HTML 格式顯示。
+
+資料庫 CRUD (建立/讀取/更新/刪除)：
+
+建立 (Create)：點擊「新增筆記」按鈕, 會在 Firestore 中建立一筆新文件，並自動在筆記列表中顯示。
+
+讀取 (Read)：使用 onSnapshot 監聽 Firestore，筆記列表會自動即時更新。
+
+更新 (Update)：當使用者修改「標題」或「內容」時，應用程式應「自動儲存」變更到 Firestore（建議使用 debounce 技術防止過度頻繁寫入）。
+
+刪除 (Delete)：提供一個「刪除筆記」按鈕, 用於刪除當前選中的筆記。
+
+3. 技術棧
+
+類別
+
+技術
+
+用途
+
+基礎架構
+
+HTML, CSS, JavaScript
+
+建構網頁基本結構與 logique。
+
+CSS 框架
+
+Tailwind CSS
+
+快速打造美觀、響應式的介面。
+
+資料庫 & 驗證
+
+Firebase (Firestore & Auth)
+
+儲存使用者筆記資料、管理使用者身份。
+
+Markdown 處理
+
+marked.js
+
+將 Markdown 文本轉換為 HTML。
+
+安全性
+
+DOMPurify
+
+(重要) 在顯示 marked.js 產生的 HTML 之前，對其進行清理，防止 XSS 攻擊。
+
+4. 畫面佈局 (UI/UX)
+
+桌面版 (Desktop)：
+
+採用雙欄佈局。
+
+左欄 (約 30%)：筆記列表 (包含「新增筆記」按鈕)。
+
+右欄 (約 70%)：分為上下兩部分：
+
+上半部：標題輸入框、Markdown textarea 編輯器。
+
+下半部：marked.js 渲染的 HTML 預覽區。
+
+行動版 (Mobile)：
+
+預設畫面：僅顯示「筆記列表」。
+
+點擊「新增筆記」或任一筆記後，切換畫面至「編輯器/預覽」視圖（列表暫時隱藏）。
+
+編輯器畫面應有「返回列表」的按鈕。
+
+5. 資料庫結構 (Firestore)
+
+為了確保資料安全，我們將使用 Firestore 的安全規則，將每個使用者的資料存在各自的私有路徑中。
+
+集合路徑 (Collection Path)：
+
+/artifacts/{appId}/users/{userId}/notes
+
+
+
+
+文件 (Document)：
+每個 noteId 都是一個文件，其結構如下：
+
+{
+  "title": "我的第一篇筆記",
+  "content": "# 這是一級標題\n\n這是一些 *Markdown* 內容。",
+  "createdAt": "2025-11-09T14:30:00Z",
+  "updatedAt": "2025-11-09T14:35:00Z"
+}
+
+
+
+
+6. 核心流程
+
+初始化：
+
+載入 Firebase SDK。
+
+使用 __firebase_config 初始化 Firebase App。
+
+取得 auth 和 db 實例。
+
+使用 signInWithCustomToken 或 signInAnonymously 登入，取得 userId。
+
+設定 notesCollectionRef (指向 .../users/{userId}/notes)。
+
+監聽資料：
+
+使用 onSnapshot(notesCollectionRef, ...) 監聽筆記集合。
+
+優化：在 JS 中，將獲取的 docs 陣列按照 updatedAt 欄位進行排序 (新 -> 舊)。
+
+將排序後的筆記列表渲染到左側 UI。
+
+選取/載入筆記：
+
+使用者點擊列表中的筆記 (DOM 元素上應儲存其 noteId)。
+
+從本地快取的筆記陣列中找到該筆記的 title 和 content。
+
+將 title Tribe 填入標題輸入框。
+
+將 content 填入 textarea。
+
+觸發一次 Markdown 渲染。
+
+自動儲存 (使用 Debounce)：
+
+監聽「標題輸入框」和「textarea」的 input 事件。
+
+事件觸發時，呼叫一個 debounce 函數 (延遲約 1-2 秒)。
+
+Debounce 計時結束後，取得當前 noteId、title 和 content。
+
+使用 setDoc(doc(db, notesCollectionRef, noteId), { ... }, { merge: true })，並更新 updatedAt 時間戳，將變更儲存回 Firestore。
+
+渲染 Markdown：
+
+textarea 內容變更時 (即時，不用 debounce)。
+
+htmlOutput = DOMPurify.sanitize(marked.parse(textarea.value))
+
+previewElement.innerHTML = htmlOutput
+
+7. 優化建議 (未來擴充)
+
+程式碼高亮：整合 highlight.js 函式庫，讓 marked.js 在渲染程式碼區塊時能自動加上語法高亮。
+
+載入狀態：在 onSnapshot 首次載入資料時顯示一個 loading 轉場動畫。
+
+錯誤處理：在 Firestore 讀寫失敗時，在 UI 上顯示友善的錯誤提示。
+
+完整 Auth：未來可擴充為支援 Google, GitHub 等 OAuth 登入，讓使用者能在不同裝置同步筆記。

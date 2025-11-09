@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Markdown Note Cloud</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Firebase SDK v9+ -->
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getAuth, signInAnonymously, signInWithCustomToken } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+        import { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+
+        window.firebaseModules = {
+            initializeApp,
+            getAuth,
+            signInAnonymously,
+            signInWithCustomToken,
+            getFirestore,
+            collection,
+            doc,
+            setDoc,
+            deleteDoc,
+            onSnapshot,
+            serverTimestamp
+        };
+    </script>
+
+    <!-- Marked.js for Markdown parsing -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+    <!-- DOMPurify for XSS protection -->
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.6/dist/purify.min.js"></script>
+
+    <style>
+        .note-list-item {
+            transition: background-color 0.2s;
+        }
+        .note-list-item:hover {
+            background-color: rgba(59, 130, 246, 0.1);
+        }
+        .dark .note-list-item:hover {
+            background-color: rgba(59, 130, 246, 0.2);
+        }
+        .note-list-item.active {
+            background-color: rgba(59, 130, 246, 0.2);
+            border-left: 4px solid #3b82f6;
+        }
+        .dark .note-list-item.active {
+            background-color: rgba(59, 130, 246, 0.3);
+        }
+        .markdown-preview {
+            line-height: 1.6;
+        }
+        .markdown-preview h1 {
+            font-size: 2em;
+            font-weight: bold;
+            margin-top: 0.67em;
+            margin-bottom: 0.67em;
+        }
+        .markdown-preview h2 {
+            font-size: 1.5em;
+            font-weight: bold;
+            margin-top: 0.83em;
+            margin-bottom: 0.83em;
+        }
+        .markdown-preview h3 {
+            font-size: 1.17em;
+            font-weight: bold;
+            margin-top: 1em;
+            margin-bottom: 1em;
+        }
+        .markdown-preview p {
+            margin-bottom: 1em;
+        }
+        .markdown-preview ul, .markdown-preview ol {
+            margin-left: 2em;
+            margin-bottom: 1em;
+        }
+        .markdown-preview code {
+            background-color: #f3f4f6;
+            padding: 0.2em 0.4em;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+        .dark .markdown-preview code {
+            background-color: #374151;
+            color: #e5e7eb;
+        }
+        .markdown-preview pre {
+            background-color: #f3f4f6;
+            padding: 1em;
+            border-radius: 5px;
+            overflow-x: auto;
+            margin-bottom: 1em;
+        }
+        .dark .markdown-preview pre {
+            background-color: #374151;
+        }
+        .markdown-preview pre code {
+            background-color: transparent;
+            padding: 0;
+        }
+        .markdown-preview blockquote {
+            border-left: 4px solid #d1d5db;
+            padding-left: 1em;
+            margin-left: 0;
+            margin-bottom: 1em;
+            color: #6b7280;
+        }
+        .dark .markdown-preview blockquote {
+            border-left-color: #4b5563;
+            color: #9ca3af;
+        }
+        #loading {
+            display: none;
+        }
+        #loading.active {
+            display: flex;
+        }
+        #themeToggle {
+            transition: transform 0.3s ease;
+        }
+        #themeToggle:hover {
+            transform: scale(1.1);
+        }
+    </style>
+</head>
+<body class="bg-gray-100 dark:bg-gray-900 transition-colors duration-200">
+    <!-- Loading Overlay -->
+    <div id="loading" class="fixed inset-0 bg-black bg-opacity-50 items-center justify-center z-50">
+        <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-xl">
+            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
+            <p class="mt-4 text-gray-700 dark:text-gray-300">載入中...</p>
+        </div>
+    </div>
+
+    <!-- Main Container -->
+    <div class="h-screen flex flex-col">
+        <!-- Header -->
+        <header class="bg-blue-600 dark:bg-gray-800 text-white p-4 shadow-lg transition-colors duration-200">
+            <div class="container mx-auto flex justify-between items-center">
+                <h1 class="text-2xl font-bold">📝 Markdown Note Cloud</h1>
+                <div class="flex items-center gap-4">
+                    <button id="themeToggle" class="text-2xl hover:opacity-80 cursor-pointer" title="切換主題">
+                        <span id="themeIcon">🌙</span>
+                    </button>
+                    <div id="userStatus" class="text-sm">
+                        <span id="userInfo">未登入</span>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Demo Mode Banner -->
+        <div id="demoBanner" class="hidden bg-yellow-100 dark:bg-yellow-900 border-b border-yellow-200 dark:border-yellow-800 p-2 text-center">
+            <p class="text-sm text-yellow-800 dark:text-yellow-200">
+                ⚠️ 演示模式：數據儲存在瀏覽器本地 (localStorage)。配置 Firebase 以啟用雲端同步。
+                <a href="#" id="dismissDemo" class="ml-2 underline font-semibold">關閉提示</a>
+            </p>
+        </div>
+
+        <!-- Main Content -->
+        <div class="flex-1 flex overflow-hidden">
+            <!-- Note List Sidebar (Desktop: always visible, Mobile: toggleable) -->
+            <aside id="noteListPanel" class="w-full md:w-80 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col transition-colors duration-200">
+                <!-- New Note Button -->
+                <div class="p-4 border-b border-gray-200 dark:border-gray-700">
+                    <button id="newNoteBtn" class="w-full bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg transition duration-200">
+                        ➕ 新增筆記
+                    </button>
+                </div>
+
+                <!-- Note List -->
+                <div id="noteList" class="flex-1 overflow-y-auto">
+                    <div class="p-4 text-gray-500 dark:text-gray-400 text-center">
+                        <p>尚無筆記</p>
+                        <p class="text-sm mt-2">點擊上方按鈕建立第一篇筆記</p>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- Editor Panel (Desktop: always visible, Mobile: toggleable) -->
+            <main id="editorPanel" class="flex-1 flex flex-col bg-white dark:bg-gray-800 hidden md:flex transition-colors duration-200">
+                <!-- Mobile Back Button -->
+                <div class="md:hidden p-4 border-b border-gray-200 dark:border-gray-700">
+                    <button id="backToListBtn" class="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-semibold">
+                        ← 返回列表
+                    </button>
+                </div>
+
+                <!-- Editor Section -->
+                <div class="flex-1 flex flex-col overflow-hidden">
+                    <!-- Title Input -->
+                    <div class="p-4 border-b border-gray-200 dark:border-gray-700">
+                        <input
+                            id="noteTitle"
+                            type="text"
+                            placeholder="輸入筆記標題..."
+                            class="w-full text-2xl font-bold outline-none bg-transparent text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500"
+                            disabled
+                        >
+                    </div>
+
+                    <!-- Editor and Preview -->
+                    <div class="flex-1 flex flex-col lg:flex-row overflow-hidden">
+                        <!-- Markdown Editor -->
+                        <div class="flex-1 flex flex-col border-b lg:border-b-0 lg:border-r border-gray-200 dark:border-gray-700">
+                            <div class="p-2 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
+                                <span class="text-sm text-gray-600 dark:text-gray-400 font-semibold">✏️ 編輯器</span>
+                            </div>
+                            <textarea
+                                id="noteContent"
+                                placeholder="在此輸入 Markdown 內容..."
+                                class="flex-1 p-4 outline-none resize-none font-mono text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500"
+                                disabled
+                            ></textarea>
+                        </div>
+
+                        <!-- Markdown Preview -->
+                        <div class="flex-1 flex flex-col overflow-hidden">
+                            <div class="p-2 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
+                                <span class="text-sm text-gray-600 dark:text-gray-400 font-semibold">👁️ 預覽</span>
+                            </div>
+                            <div id="markdownPreview" class="flex-1 p-4 overflow-y-auto markdown-preview text-gray-900 dark:text-gray-100">
+                                <p class="text-gray-400 dark:text-gray-500">預覽區域</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="p-4 border-t border-gray-200 dark:border-gray-700 flex justify-between items-center">
+                        <div class="flex items-center space-x-2">
+                            <span id="saveStatus" class="text-sm text-gray-500 dark:text-gray-400">請選擇或建立筆記</span>
+                        </div>
+                        <button id="deleteNoteBtn" class="bg-red-600 hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-600 text-white font-semibold py-2 px-4 rounded-lg transition duration-200 disabled:bg-gray-300 dark:disabled:bg-gray-600 disabled:cursor-not-allowed" disabled>
+                            🗑️ 刪除筆記
+                        </button>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- App Script -->
+    <script src="app.js" type="module"></script>
+</body>
+</html>

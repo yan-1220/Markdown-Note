@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="zh-TW" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Markdown Note Cloud</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.6/dist/purify.min.js"></script>
+    <style>
+        .note-list-item { transition: background-color 0.2s; }
+        .note-list-item:hover { background-color: rgba(59, 130, 246, 0.2); }
+        .note-list-item.active { background-color: rgba(59, 130, 246, 0.3); border-left: 4px solid #3b82f6; }
+        .markdown-preview { line-height: 1.6; }
+        .markdown-preview h1 { font-size: 2em; font-weight: bold; margin: 0.67em 0; }
+        .markdown-preview h2 { font-size: 1.5em; font-weight: bold; margin: 0.83em 0; }
+        .markdown-preview h3 { font-size: 1.17em; font-weight: bold; margin: 1em 0; }
+        .markdown-preview p { margin-bottom: 1em; }
+        .markdown-preview ul, .markdown-preview ol { margin-left: 2em; margin-bottom: 1em; }
+        .markdown-preview code { background-color: #374151; color: #e5e7eb; padding: 0.2em 0.4em; border-radius: 3px; font-family: monospace; }
+        .markdown-preview pre { background-color: #374151; padding: 1em; border-radius: 5px; overflow-x: auto; margin-bottom: 1em; }
+        .markdown-preview pre code { background-color: transparent; padding: 0; }
+        .markdown-preview blockquote { border-left: 4px solid #4b5563; padding-left: 1em; margin: 0 0 1em 0; color: #9ca3af; }
+        .markdown-preview table { border-collapse: collapse; width: 100%; margin-bottom: 1em; }
+        .markdown-preview table th { background-color: #374151; color: #e5e7eb; font-weight: bold; padding: 0.75em; text-align: left; border: 1px solid #4b5563; }
+        .markdown-preview table td { padding: 0.75em; border: 1px solid #4b5563; }
+        .markdown-preview table tr:nth-child(even) { background-color: rgba(55, 65, 81, 0.3); }
+        .markdown-preview table tr:hover { background-color: rgba(59, 130, 246, 0.1); }
+        .markdown-preview a { color: #60a5fa; text-decoration: underline; }
+        .markdown-preview a:hover { color: #93c5fd; }
+        .markdown-preview hr { border: none; border-top: 1px solid #4b5563; margin: 1.5em 0; }
+        .markdown-preview img { max-width: 100%; height: auto; border-radius: 5px; margin: 1em 0; }
+        #noteTitle:disabled { opacity: 1; cursor: default; }
+    </style>
+</head>
+<body class="bg-gray-900">
+    <div class="h-screen flex flex-col">
+        <!-- Header -->
+        <header class="bg-gray-800 text-white p-4 shadow-lg">
+            <div class="container mx-auto flex justify-between items-center">
+                <h1 class="text-2xl font-bold">📝 Markdown Note Cloud</h1>
+                <span class="text-sm text-gray-300">本地儲存模式</span>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <div class="flex-1 flex overflow-hidden">
+            <!-- Sidebar -->
+            <aside class="w-80 bg-gray-800 border-r border-gray-700 flex flex-col">
+                <div class="p-4 border-b border-gray-700">
+                    <button id="newNoteBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg">
+                        ➕ 新增筆記
+                    </button>
+                </div>
+                <div class="p-4 border-b border-gray-700">
+                    <div class="relative">
+                        <input
+                            id="searchInput"
+                            type="text"
+                            placeholder="🔍 搜尋筆記..."
+                            class="w-full bg-gray-700 text-gray-100 placeholder-gray-400 rounded-lg py-2 px-4 outline-none focus:ring-2 focus:ring-blue-500">
+                        <button id="clearSearchBtn" class="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-200 hidden">
+                            ✕
+                        </button>
+                    </div>
+                    <div id="searchStats" class="mt-2 text-xs text-gray-400 hidden">
+                        找到 <span id="searchCount">0</span> 筆結果
+                    </div>
+                </div>
+                <div id="noteList" class="flex-1 overflow-y-auto"></div>
+            </aside>
+
+            <!-- Editor -->
+            <main class="flex-1 flex flex-col bg-gray-800">
+                <div class="p-4 border-b border-gray-700">
+                    <input id="noteTitle" type="text" placeholder="輸入筆記標題..."
+                           class="w-full text-2xl font-bold outline-none bg-transparent text-gray-100 placeholder-gray-500" disabled>
+                    <div id="noteTimestamp" class="mt-2 text-xs text-gray-500 hidden">
+                        <span id="createdTime"></span>
+                        <span class="mx-2">•</span>
+                        <span id="updatedTime"></span>
+                    </div>
+                </div>
+                <div class="flex-1 flex overflow-hidden">
+                    <div id="editorSection" class="flex-1 flex flex-col border-r border-gray-700">
+                        <div class="p-2 bg-gray-900 border-b border-gray-700">
+                            <span class="text-sm font-semibold text-gray-300">✏️ 編輯器</span>
+                        </div>
+                        <textarea id="noteContent" placeholder="在此輸入 Markdown 內容..."
+                                  class="flex-1 p-4 outline-none resize-none font-mono text-sm bg-gray-800 text-gray-100 placeholder-gray-500" disabled></textarea>
+                    </div>
+                    <div id="previewSection" class="flex-1 flex flex-col">
+                        <div class="p-2 bg-gray-900 border-b border-gray-700">
+                            <span class="text-sm font-semibold text-gray-300">📄 Markdown</span>
+                        </div>
+                        <div id="markdownPreview" class="flex-1 p-4 overflow-y-auto markdown-preview text-gray-100">
+                            <p class="text-gray-500">Markdown 渲染區域</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="p-4 border-t border-gray-700 flex justify-between items-center">
+                    <div class="flex items-center gap-4">
+                        <span id="saveStatus" class="text-sm text-gray-400">請選擇或建立筆記</span>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <button id="toggleModeBtn" class="bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg disabled:bg-gray-600 disabled:cursor-not-allowed" disabled>
+                            ✏️ 編輯
+                        </button>
+                        <button id="deleteNoteBtn" class="bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded-lg disabled:bg-gray-600 disabled:cursor-not-allowed" disabled>
+                            🗑️ 刪除筆記
+                        </button>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script>
+        console.log('Script started');
+
+        // State
+        let notes = [];
+        let currentNoteId = null;
+        let autoSaveTimeout = null;
+        let isEditMode = true; // true: 编辑模式, false: 预览模式
+        let searchQuery = ''; // 搜索关键字
+
+        // Elements
+        const els = {
+            newNoteBtn: document.getElementById('newNoteBtn'),
+            noteList: document.getElementById('noteList'),
+            noteTitle: document.getElementById('noteTitle'),
+            noteContent: document.getElementById('noteContent'),
+            markdownPreview: document.getElementById('markdownPreview'),
+            deleteNoteBtn: document.getElementById('deleteNoteBtn'),
+            saveStatus: document.getElementById('saveStatus'),
+            toggleModeBtn: document.getElementById('toggleModeBtn'),
+            editorSection: document.getElementById('editorSection'),
+            previewSection: document.getElementById('previewSection'),
+            searchInput: document.getElementById('searchInput'),
+            clearSearchBtn: document.getElementById('clearSearchBtn'),
+            searchStats: document.getElementById('searchStats'),
+            searchCount: document.getElementById('searchCount'),
+            noteTimestamp: document.getElementById('noteTimestamp'),
+            createdTime: document.getElementById('createdTime'),
+            updatedTime: document.getElementById('updatedTime')
+        };
+
+        // Notes
+        function loadNotes() {
+            const saved = localStorage.getItem('demo-notes');
+            notes = saved ? JSON.parse(saved) : [];
+            notes.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+            renderNoteList();
+        }
+
+        function saveNotes() {
+            localStorage.setItem('demo-notes', JSON.stringify(notes));
+        }
+
+        function renderNoteList() {
+            // 搜索过滤
+            let filteredNotes = notes;
+            if (searchQuery.trim()) {
+                const query = searchQuery.toLowerCase();
+                filteredNotes = notes.filter(note => {
+                    const title = (note.title || '').toLowerCase();
+                    const content = (note.content || '').toLowerCase();
+                    return title.includes(query) || content.includes(query);
+                });
+
+                // 显示搜索统计
+                els.searchStats.classList.remove('hidden');
+                els.searchCount.textContent = filteredNotes.length;
+            } else {
+                // 隐藏搜索统计
+                els.searchStats.classList.add('hidden');
+            }
+
+            if (notes.length === 0) {
+                els.noteList.innerHTML = '<div class="p-4 text-center text-gray-400"><p>尚無筆記</p></div>';
+                return;
+            }
+
+            if (filteredNotes.length === 0) {
+                els.noteList.innerHTML = '<div class="p-4 text-center text-gray-400"><p>找不到符合的筆記</p><p class="text-xs mt-2">試試其他關鍵字</p></div>';
+                return;
+            }
+
+            els.noteList.innerHTML = filteredNotes.map(note => {
+                const active = note.id === currentNoteId ? 'active' : '';
+                const title = highlightText(note.title || '無標題', searchQuery);
+                const preview = highlightText((note.content || '').substring(0, 50), searchQuery);
+                const timeText = formatRelativeTime(note.updatedAt);
+
+                return `
+                    <div class="note-list-item p-4 cursor-pointer border-b border-gray-700 ${active}" onclick="selectNote('${note.id}')">
+                        <h3 class="font-semibold text-gray-200 truncate">${title}</h3>
+                        <p class="text-sm text-gray-400 mt-1 truncate">${preview}</p>
+                        <p class="text-xs text-gray-500 mt-1">📅 ${timeText}</p>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function highlightText(text, query) {
+            if (!query.trim()) {
+                return escapeHtml(text);
+            }
+
+            const escaped = escapeHtml(text);
+            const escapedQuery = escapeHtml(query);
+            const regex = new RegExp(`(${escapedQuery})`, 'gi');
+            return escaped.replace(regex, '<mark class="bg-yellow-500 text-gray-900 px-1 rounded">$1</mark>');
+        }
+
+        function performSearch(query) {
+            searchQuery = query;
+            renderNoteList();
+
+            // 显示/隐藏清除按钮
+            if (query.trim()) {
+                els.clearSearchBtn.classList.remove('hidden');
+            } else {
+                els.clearSearchBtn.classList.add('hidden');
+            }
+        }
+
+        function clearSearch() {
+            els.searchInput.value = '';
+            performSearch('');
+            els.searchInput.focus();
+        }
+
+        function createNote() {
+            console.log('Creating note...');
+            const note = {
+                id: Date.now().toString(36),
+                title: '新筆記',
+                content: '',
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString()
+            };
+            notes.unshift(note);
+            saveNotes();
+            renderNoteList();
+
+            // 新建笔记时直接进入编辑模式
+            currentNoteId = note.id;
+            els.noteTitle.value = note.title;
+            els.noteContent.value = note.content;
+            els.deleteNoteBtn.disabled = false;
+            els.toggleModeBtn.disabled = false;
+            setEditMode(true);
+            renderMarkdown(note.content);
+            updateTimestampDisplay(note);
+            renderNoteList();
+        }
+
+        function selectNote(id) {
+            console.log('Selecting note:', id);
+            const note = notes.find(n => n.id === id);
+            if (!note) return;
+
+            currentNoteId = id;
+            els.noteTitle.value = note.title;
+            els.noteContent.value = note.content;
+            els.deleteNoteBtn.disabled = false;
+            els.toggleModeBtn.disabled = false;
+
+            // 默认进入预览模式（Markdown 渲染模式）
+            setEditMode(false);
+
+            renderMarkdown(note.content);
+            updateTimestampDisplay(note);
+            renderNoteList();
+        }
+
+        function setEditMode(editMode) {
+            isEditMode = editMode;
+
+            if (isEditMode) {
+                // 编辑模式：显示编辑器和Markdown预览
+                els.editorSection.classList.remove('hidden');
+                els.previewSection.classList.remove('hidden');
+                els.noteTitle.disabled = false;
+                els.noteContent.disabled = false;
+                els.toggleModeBtn.innerHTML = '✅ 完成';
+                els.toggleModeBtn.className = 'bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-lg';
+                els.saveStatus.textContent = '編輯模式';
+            } else {
+                // Markdown 预览模式：只显示渲染结果
+                els.editorSection.classList.add('hidden');
+                els.previewSection.classList.remove('hidden');
+                els.noteTitle.disabled = true;
+                els.noteContent.disabled = true;
+                els.toggleModeBtn.innerHTML = '✏️ 編輯';
+                els.toggleModeBtn.className = 'bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg';
+                els.saveStatus.textContent = 'Markdown 模式';
+            }
+        }
+
+        function toggleMode() {
+            if (!currentNoteId) return;
+            setEditMode(!isEditMode);
+        }
+
+        function updateNote(data) {
+            const note = notes.find(n => n.id === currentNoteId);
+            if (!note) return;
+
+            Object.assign(note, data, { updatedAt: new Date().toISOString() });
+            notes.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+            saveNotes();
+            renderNoteList();
+            updateTimestampDisplay(note);
+
+            // 显示保存状态
+            const originalStatus = els.saveStatus.textContent;
+            els.saveStatus.textContent = '已儲存 ✓';
+            setTimeout(() => {
+                els.saveStatus.textContent = isEditMode ? '編輯模式' : 'Markdown 模式';
+            }, 2000);
+        }
+
+        function deleteNote() {
+            if (!currentNoteId || !confirm('確定要刪除此筆記嗎？')) return;
+
+            notes = notes.filter(n => n.id !== currentNoteId);
+            saveNotes();
+
+            currentNoteId = null;
+            els.noteTitle.value = '';
+            els.noteContent.value = '';
+            els.noteTitle.disabled = true;
+            els.noteContent.disabled = true;
+            els.deleteNoteBtn.disabled = true;
+            els.toggleModeBtn.disabled = true;
+            els.saveStatus.textContent = '請選擇或建立筆記';
+            els.markdownPreview.innerHTML = '<p class="text-gray-500">Markdown 渲染區域</p>';
+            updateTimestampDisplay(null);
+
+            renderNoteList();
+        }
+
+        function renderMarkdown(text) {
+            try {
+                const html = DOMPurify.sanitize(marked.parse(text || ''));
+                els.markdownPreview.innerHTML = html || '<p class="text-gray-500">預覽區域</p>';
+            } catch (e) {
+                console.error('Markdown error:', e);
+            }
+        }
+
+        function debounce(fn, delay) {
+            return (...args) => {
+                clearTimeout(autoSaveTimeout);
+                autoSaveTimeout = setTimeout(() => fn(...args), delay);
+            };
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function formatDateTime(isoString) {
+            if (!isoString) return '';
+            const date = new Date(isoString);
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            const hours = String(date.getHours()).padStart(2, '0');
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+            return `${year}-${month}-${day} ${hours}:${minutes}`;
+        }
+
+        function formatRelativeTime(isoString) {
+            if (!isoString) return '';
+            const date = new Date(isoString);
+            const now = new Date();
+            const diffMs = now - date;
+            const diffMins = Math.floor(diffMs / 60000);
+            const diffHours = Math.floor(diffMs / 3600000);
+            const diffDays = Math.floor(diffMs / 86400000);
+
+            if (diffMins < 1) return '剛剛';
+            if (diffMins < 60) return `${diffMins} 分鐘前`;
+            if (diffHours < 24) return `${diffHours} 小時前`;
+            if (diffDays < 7) return `${diffDays} 天前`;
+
+            return formatDateTime(isoString);
+        }
+
+        function updateTimestampDisplay(note) {
+            if (!note) {
+                els.noteTimestamp.classList.add('hidden');
+                return;
+            }
+
+            els.createdTime.textContent = `建立時間：${formatDateTime(note.createdAt)}`;
+            els.updatedTime.textContent = `最後更新：${formatDateTime(note.updatedAt)}`;
+            els.noteTimestamp.classList.remove('hidden');
+        }
+
+        // Make selectNote global
+        window.selectNote = selectNote;
+
+        // Event listeners
+        els.newNoteBtn.addEventListener('click', createNote);
+        els.deleteNoteBtn.addEventListener('click', deleteNote);
+        els.toggleModeBtn.addEventListener('click', toggleMode);
+
+        // Search events
+        els.searchInput.addEventListener('input', (e) => {
+            performSearch(e.target.value);
+        });
+
+        els.clearSearchBtn.addEventListener('click', clearSearch);
+
+        // Enter key to search
+        els.searchInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                clearSearch();
+            }
+        });
+
+        const debouncedSave = debounce((data) => updateNote(data), 1500);
+
+        els.noteTitle.addEventListener('input', (e) => {
+            debouncedSave({ title: e.target.value });
+            renderNoteList();
+        });
+
+        els.noteContent.addEventListener('input', (e) => {
+            debouncedSave({ content: e.target.value });
+            renderMarkdown(e.target.value);
+        });
+
+        // Initialize
+        loadNotes();
+        console.log('App ready!');
+    </script>
+</body>
+</html>
