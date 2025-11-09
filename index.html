@@ -48,9 +48,18 @@
             <!-- Sidebar -->
             <aside class="w-80 bg-gray-800 border-r border-gray-700 flex flex-col">
                 <div class="p-4 border-b border-gray-700">
-                    <button id="newNoteBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg">
+                    <button id="newNoteBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg mb-2">
                         ➕ 新增筆記
                     </button>
+                    <div class="flex gap-2">
+                        <button id="exportBtn" class="flex-1 bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-3 rounded-lg text-sm">
+                            📤 匯出
+                        </button>
+                        <button id="importBtn" class="flex-1 bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-3 rounded-lg text-sm">
+                            📥 匯入
+                        </button>
+                    </div>
+                    <input type="file" id="importFileInput" accept=".json" class="hidden">
                 </div>
                 <div class="p-4 border-b border-gray-700">
                     <div class="relative">
@@ -143,7 +152,10 @@
             searchCount: document.getElementById('searchCount'),
             noteTimestamp: document.getElementById('noteTimestamp'),
             createdTime: document.getElementById('createdTime'),
-            updatedTime: document.getElementById('updatedTime')
+            updatedTime: document.getElementById('updatedTime'),
+            exportBtn: document.getElementById('exportBtn'),
+            importBtn: document.getElementById('importBtn'),
+            importFileInput: document.getElementById('importFileInput')
         };
 
         // Notes
@@ -404,6 +416,149 @@
             els.noteTimestamp.classList.remove('hidden');
         }
 
+        // Export/Import Functions
+        function exportData() {
+            try {
+                // 获取所有笔记数据
+                const exportData = {
+                    version: '1.0',
+                    exportDate: new Date().toISOString(),
+                    notesCount: notes.length,
+                    notes: notes
+                };
+
+                // 转换为 JSON 字符串
+                const jsonString = JSON.stringify(exportData, null, 2);
+
+                // 创建 Blob 对象
+                const blob = new Blob([jsonString], { type: 'application/json' });
+
+                // 创建下载链接
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+
+                // 生成文件名（包含日期时间）
+                const now = new Date();
+                const dateStr = now.toISOString().split('T')[0];
+                const timeStr = now.toTimeString().split(' ')[0].replace(/:/g, '-');
+                a.download = `markdown-notes-backup-${dateStr}-${timeStr}.json`;
+
+                // 触发下载
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+
+                // 显示成功消息
+                const originalStatus = els.saveStatus.textContent;
+                els.saveStatus.textContent = `✅ 已匯出 ${notes.length} 筆筆記`;
+                setTimeout(() => {
+                    els.saveStatus.textContent = originalStatus;
+                }, 3000);
+
+                console.log('Data exported successfully:', exportData);
+            } catch (error) {
+                console.error('Export error:', error);
+                alert('匯出失敗：' + error.message);
+            }
+        }
+
+        function importData() {
+            // 触发文件选择
+            els.importFileInput.click();
+        }
+
+        function handleImportFile(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            // 验证文件类型
+            if (!file.name.endsWith('.json')) {
+                alert('請選擇 JSON 格式的檔案');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const importedData = JSON.parse(e.target.result);
+
+                    // 验证数据格式
+                    if (!importedData.notes || !Array.isArray(importedData.notes)) {
+                        throw new Error('無效的資料格式：找不到 notes 陣列');
+                    }
+
+                    // 询问用户导入方式
+                    const choice = confirm(
+                        `即將匯入 ${importedData.notesCount || importedData.notes.length} 筆筆記\n\n` +
+                        `匯出日期：${importedData.exportDate ? new Date(importedData.exportDate).toLocaleString('zh-TW') : '未知'}\n\n` +
+                        `點擊「確定」將覆蓋現有資料\n` +
+                        `點擊「取消」將合併資料（保留現有筆記）`
+                    );
+
+                    let finalNotes = [];
+                    let importedCount = 0;
+
+                    if (choice) {
+                        // 覆盖模式：替换所有数据
+                        finalNotes = importedData.notes;
+                        importedCount = finalNotes.length;
+                    } else {
+                        // 合并模式：保留现有数据，添加新数据
+                        const existingIds = new Set(notes.map(n => n.id));
+                        const newNotes = importedData.notes.filter(note => !existingIds.has(note.id));
+                        finalNotes = [...notes, ...newNotes];
+                        importedCount = newNotes.length;
+                    }
+
+                    // 更新 notes 数组
+                    notes = finalNotes;
+
+                    // 排序并保存
+                    notes.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+                    saveNotes();
+                    renderNoteList();
+
+                    // 清除当前编辑
+                    if (currentNoteId && !notes.find(n => n.id === currentNoteId)) {
+                        currentNoteId = null;
+                        els.noteTitle.value = '';
+                        els.noteContent.value = '';
+                        els.noteTitle.disabled = true;
+                        els.noteContent.disabled = true;
+                        els.deleteNoteBtn.disabled = true;
+                        els.toggleModeBtn.disabled = true;
+                        els.markdownPreview.innerHTML = '<p class="text-gray-500">Markdown 渲染區域</p>';
+                        updateTimestampDisplay(null);
+                    }
+
+                    // 显示成功消息
+                    const mode = choice ? '覆蓋' : '合併';
+                    els.saveStatus.textContent = `✅ 已${mode}匯入 ${importedCount} 筆筆記`;
+                    setTimeout(() => {
+                        els.saveStatus.textContent = '請選擇或建立筆記';
+                    }, 3000);
+
+                    console.log(`Data imported successfully (${mode} mode):`, { importedCount, totalNotes: notes.length });
+
+                } catch (error) {
+                    console.error('Import error:', error);
+                    alert('匯入失敗：' + error.message);
+                }
+
+                // 重置文件输入
+                event.target.value = '';
+            };
+
+            reader.onerror = () => {
+                alert('讀取檔案失敗');
+                event.target.value = '';
+            };
+
+            reader.readAsText(file);
+        }
+
         // Make selectNote global
         window.selectNote = selectNote;
 
@@ -411,6 +566,11 @@
         els.newNoteBtn.addEventListener('click', createNote);
         els.deleteNoteBtn.addEventListener('click', deleteNote);
         els.toggleModeBtn.addEventListener('click', toggleMode);
+
+        // Export/Import events
+        els.exportBtn.addEventListener('click', exportData);
+        els.importBtn.addEventListener('click', importData);
+        els.importFileInput.addEventListener('change', handleImportFile);
 
         // Search events
         els.searchInput.addEventListener('input', (e) => {
