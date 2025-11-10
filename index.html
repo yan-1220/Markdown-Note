@@ -262,6 +262,59 @@
         .fullscreen-btn:hover {
             background-color: rgba(59, 130, 246, 0.2);
         }
+
+        /* 可拖动分隔条样式 */
+        .resize-handle {
+            width: 4px;
+            background-color: #2a2a2a;
+            cursor: col-resize;
+            flex-shrink: 0;
+            position: relative;
+            transition: background-color 0.2s;
+        }
+
+        .resize-handle:hover {
+            background-color: #3b82f6;
+        }
+
+        .resize-handle:active {
+            background-color: #60a5fa;
+        }
+
+        /* 拖动时的视觉反馈 */
+        .resize-handle::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 20px;
+            height: 40px;
+            background: linear-gradient(90deg,
+                transparent 0%,
+                rgba(59, 130, 246, 0.1) 25%,
+                rgba(59, 130, 246, 0.2) 50%,
+                rgba(59, 130, 246, 0.1) 75%,
+                transparent 100%);
+            border-radius: 4px;
+            opacity: 0;
+            transition: opacity 0.2s;
+            pointer-events: none;
+        }
+
+        .resize-handle:hover::after {
+            opacity: 1;
+        }
+
+        /* 拖动时禁用选择 */
+        body.resizing {
+            user-select: none;
+            cursor: col-resize !important;
+        }
+
+        body.resizing * {
+            cursor: col-resize !important;
+        }
     </style>
 </head>
 <body class="bg-gray-900">
@@ -327,13 +380,14 @@
                     </div>
                 </div>
                 <div class="flex-1 flex overflow-hidden">
-                    <div id="editorSection" class="flex-1 flex flex-col border-r border-gray-700">
+                    <div id="editorSection" class="flex-1 flex flex-col">
                         <div class="p-2 bg-gray-900 border-b border-gray-700">
                             <span class="text-sm font-semibold text-gray-300">✏️ 編輯器</span>
                         </div>
                         <textarea id="noteContent" placeholder="在此輸入 Markdown 內容..."
                                   class="flex-1 p-4 outline-none resize-none font-mono text-sm bg-gray-800 text-gray-100 placeholder-gray-500" disabled></textarea>
                     </div>
+                    <div id="resizeHandle" class="resize-handle" title="拖動調整大小"></div>
                     <div id="previewSection" class="flex-1 flex flex-col">
                         <div class="p-2 bg-gray-900 border-b border-gray-700 flex justify-between items-center">
                             <span class="text-sm font-semibold text-gray-300">📄 Markdown</span>
@@ -396,6 +450,7 @@
                             <li>📄 支援完整 GitHub Flavored Markdown (GFM) 語法</li>
                             <li>🗺️ 思維導圖視圖：將筆記轉換為互動式心智圖</li>
                             <li>⛶ 全屏模式：Markdown 與思維導圖可切換為全瀏覽器範圍查看</li>
+                            <li>↔️ 可調整編輯器與預覽區域的寬度比例，雙擊重置</li>
                             <li>🎨 程式碼語法高亮：支援 180+ 種程式語言</li>
                             <li>✅ 支援任務列表、表格、刪除線等 GFM 擴展語法</li>
                             <li>✏️ 三種視圖模式：閱讀 / 編輯 / 思維導圖</li>
@@ -424,6 +479,9 @@
                                     • 點擊筆記列表中的任一筆記，預設會進入 <strong>Markdown 模式</strong>（純閱讀）<br>
                                     • 點擊右下角「✏️ 編輯」按鈕進入編輯模式<br>
                                     • 在編輯模式下，左側為編輯器，右側即時預覽 Markdown 渲染結果<br>
+                                    • <strong>可拖動中間分隔條</strong>調整編輯器與預覽區域的寬度<br>
+                                    • 雙擊分隔條可快速重置為 50/50 比例<br>
+                                    • 調整的寬度設定會自動保存，下次開啟時保持相同比例<br>
                                     • 完成編輯後點擊「✅ 完成」返回 Markdown 模式
                                 </p>
                             </div>
@@ -549,6 +607,7 @@
                             <li>清除瀏覽器資料會導致筆記遺失，請務必先備份</li>
                             <li>筆記按最後更新時間排序，最新的在最上方</li>
                             <li>編輯時會在 1.5 秒後自動儲存，避免資料遺失</li>
+                            <li>編輯器與預覽區域的寬度比例會自動保存，可依個人習慣調整</li>
                         </ul>
                     </section>
 
@@ -606,6 +665,7 @@
         let searchQuery = ''; // 搜索关键字
         let markmapInstance = null; // Markmap实例
         const markmapTransformer = typeof markmap !== 'undefined' ? new markmap.Transformer() : null;
+        let editorWidth = 50; // 编辑器宽度百分比，默认50%
 
         // Elements
         const els = {
@@ -637,7 +697,8 @@
             closeHelpBtn: document.getElementById('closeHelpBtn'),
             closeHelpBtn2: document.getElementById('closeHelpBtn2'),
             previewFullscreenBtn: document.getElementById('previewFullscreenBtn'),
-            markmapFullscreenBtn: document.getElementById('markmapFullscreenBtn')
+            markmapFullscreenBtn: document.getElementById('markmapFullscreenBtn'),
+            resizeHandle: document.getElementById('resizeHandle')
         };
 
         // Notes
@@ -790,20 +851,25 @@
                 // 编辑模式：显示编辑器和Markdown预览
                 els.editorSection.classList.remove('hidden');
                 els.previewSection.classList.remove('hidden');
+                els.resizeHandle.style.display = 'block';
                 els.noteTitle.disabled = false;
                 els.noteContent.disabled = false;
                 els.toggleModeBtn.innerHTML = '✅ 完成';
                 els.toggleModeBtn.className = 'bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-lg';
                 els.saveStatus.textContent = '編輯模式';
+                applyEditorWidth(); // 应用保存的宽度设置
             } else {
                 // Markdown 预览模式：只显示渲染结果
                 els.editorSection.classList.add('hidden');
                 els.previewSection.classList.remove('hidden');
+                els.resizeHandle.style.display = 'none';
                 els.noteTitle.disabled = true;
                 els.noteContent.disabled = true;
                 els.toggleModeBtn.innerHTML = '✏️ 編輯';
                 els.toggleModeBtn.className = 'bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg';
                 els.saveStatus.textContent = 'Markdown 模式';
+                // 预览模式下恢复为flex-1
+                els.previewSection.style.flex = '1';
             }
         }
 
@@ -1255,6 +1321,68 @@
             }
         }
 
+        // Resize Handle Functions
+        function loadEditorWidth() {
+            const saved = localStorage.getItem('editor-width');
+            if (saved) {
+                editorWidth = parseFloat(saved);
+                applyEditorWidth();
+            }
+        }
+
+        function saveEditorWidth() {
+            localStorage.setItem('editor-width', editorWidth.toString());
+        }
+
+        function applyEditorWidth() {
+            // 确保宽度在合理范围内 (20% - 80%)
+            editorWidth = Math.max(20, Math.min(80, editorWidth));
+
+            els.editorSection.style.flex = `0 0 ${editorWidth}%`;
+            els.previewSection.style.flex = `0 0 ${100 - editorWidth}%`;
+        }
+
+        function initResizeHandle() {
+            let isResizing = false;
+            let startX = 0;
+            let startWidth = 0;
+
+            els.resizeHandle.addEventListener('mousedown', (e) => {
+                isResizing = true;
+                startX = e.clientX;
+                startWidth = editorWidth;
+                document.body.classList.add('resizing');
+                e.preventDefault();
+            });
+
+            document.addEventListener('mousemove', (e) => {
+                if (!isResizing) return;
+
+                const container = els.editorSection.parentElement;
+                const containerWidth = container.offsetWidth;
+                const deltaX = e.clientX - startX;
+                const deltaPercent = (deltaX / containerWidth) * 100;
+
+                editorWidth = startWidth + deltaPercent;
+                applyEditorWidth();
+            });
+
+            document.addEventListener('mouseup', () => {
+                if (isResizing) {
+                    isResizing = false;
+                    document.body.classList.remove('resizing');
+                    saveEditorWidth();
+                }
+            });
+
+            // 双击重置为50/50
+            els.resizeHandle.addEventListener('dblclick', () => {
+                editorWidth = 50;
+                applyEditorWidth();
+                saveEditorWidth();
+            });
+        }
+
         // Make selectNote global
         window.selectNote = selectNote;
 
@@ -1330,6 +1458,8 @@
 
         // Initialize
         loadNotes();
+        loadEditorWidth();
+        initResizeHandle();
         console.log('App ready!');
     </script>
 </body>
