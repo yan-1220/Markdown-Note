@@ -9,6 +9,10 @@
     <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.6/dist/purify.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <!-- Markmap Dependencies -->
+    <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+    <script src="https://cdn.jsdelivr.net/npm/markmap-lib"></script>
+    <script src="https://cdn.jsdelivr.net/npm/markmap-view"></script>
     <style>
         /* 纯黑色背景主题 */
         body { background-color: #000000 !important; }
@@ -69,6 +73,154 @@
         .markdown-preview sup { vertical-align: super; font-size: smaller; }
         .markdown-preview sub { vertical-align: sub; font-size: smaller; }
         #noteTitle:disabled { opacity: 1; cursor: default; }
+
+        /* Markmap容器样式 */
+        #markmapSection {
+            flex: 1;
+            background: radial-gradient(circle at center, #0a0a0a 0%, #000000 100%);
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* 添加网格背景效果 */
+        #markmapSection::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background:
+                linear-gradient(90deg, rgba(96, 165, 250, 0.05) 1px, transparent 1px),
+                linear-gradient(rgba(96, 165, 250, 0.05) 1px, transparent 1px);
+            background-size: 50px 50px;
+            pointer-events: none;
+            opacity: 0.3;
+            z-index: 0;
+        }
+
+        #markmapSection svg {
+            width: 100%;
+            height: 100%;
+            display: block;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Markmap文字样式 - 更大更清晰 */
+        #markmapSection svg text,
+        #markmapSection svg tspan {
+            fill: #f3f4f6 !important;
+            font-size: 18px !important;
+            font-weight: 500 !important;
+            text-shadow: 0 0 8px rgba(0, 0, 0, 0.8), 0 0 3px rgba(0, 0, 0, 0.9) !important;
+        }
+
+        #markmapSection svg strong,
+        #markmapSection svg b {
+            fill: #ffffff !important;
+            font-weight: 800 !important;
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.3) !important;
+        }
+
+        /* 优化连接线 */
+        #markmapSection svg path.markmap-link {
+            stroke-width: 2.5px !important;
+            opacity: 0.6 !important;
+        }
+
+        /* 优化节点圆圈 */
+        #markmapSection svg circle {
+            stroke-width: 3px !important;
+            filter: drop-shadow(0 0 8px currentColor) brightness(1.2) !important;
+            cursor: pointer !important;
+            transition: all 0.3s ease !important;
+        }
+
+        #markmapSection svg circle:hover {
+            filter: drop-shadow(0 0 12px currentColor) brightness(1.4) !important;
+            transform: scale(1.1) !important;
+        }
+
+        /* 优化文字描边效果 */
+        #markmapSection svg foreignObject {
+            overflow: visible !important;
+        }
+
+        #markmapSection svg foreignObject div {
+            color: #f3f4f6 !important;
+            text-shadow:
+                -1px -1px 0 #000,
+                1px -1px 0 #000,
+                -1px 1px 0 #000,
+                1px 1px 0 #000,
+                0 0 8px rgba(0, 0, 0, 0.9),
+                0 0 4px rgba(0, 0, 0, 0.8) !important;
+            font-weight: 500 !important;
+        }
+
+        /* 根节点特殊样式 */
+        #markmapSection svg > g > g:first-child circle {
+            stroke-width: 4px !important;
+            filter: drop-shadow(0 0 12px currentColor) brightness(1.3) !important;
+        }
+
+        #markmapSection svg > g > g:first-child text {
+            font-size: 20px !important;
+            font-weight: 700 !important;
+        }
+
+        /* 代码区块样式优化 - 深灰背景 */
+        #markmapSection svg code,
+        #markmapSection svg foreignObject code {
+            background-color: #1e1e1e !important;
+            color: #d4d4d4 !important;
+            padding: 3px 8px !important;
+            border-radius: 4px !important;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace !important;
+            font-size: 14px !important;
+            font-weight: 400 !important;
+            border: 1px solid #3a3a3a !important;
+            text-shadow: none !important;
+        }
+
+        #markmapSection svg pre,
+        #markmapSection svg foreignObject pre {
+            background-color: #1e1e1e !important;
+            color: #d4d4d4 !important;
+            padding: 12px !important;
+            border-radius: 6px !important;
+            border: 1px solid #3a3a3a !important;
+            margin: 4px 0 !important;
+        }
+
+        #markmapSection svg pre code,
+        #markmapSection svg foreignObject pre code {
+            background-color: transparent !important;
+            border: none !important;
+            padding: 0 !important;
+        }
+
+        /* 确保代码区块内的文字不继承描边效果 */
+        #markmapSection svg code *,
+        #markmapSection svg pre *,
+        #markmapSection svg foreignObject code *,
+        #markmapSection svg foreignObject pre * {
+            text-shadow: none !important;
+            stroke: none !important;
+            font-weight: 400 !important;
+        }
+
+        /* 行内代码样式 */
+        #markmapSection svg foreignObject div code {
+            background-color: #1e1e1e !important;
+            color: #d4d4d4 !important;
+            padding: 2px 6px !important;
+            border-radius: 3px !important;
+            font-size: 13px !important;
+            font-weight: 400 !important;
+            border: 1px solid #3a3a3a !important;
+        }
     </style>
 </head>
 <body class="bg-gray-900">
@@ -149,12 +301,23 @@
                             <p class="text-gray-500">Markdown 渲染區域</p>
                         </div>
                     </div>
+                    <div id="markmapSection" class="hidden flex-1 flex-col">
+                        <div class="p-2 bg-gray-900 border-b border-gray-700">
+                            <span class="text-sm font-semibold text-gray-300">🗺️ 思維導圖</span>
+                        </div>
+                        <div id="markmapContainer" class="flex-1">
+                            <svg id="markmapSvg"></svg>
+                        </div>
+                    </div>
                 </div>
                 <div class="p-4 border-t border-gray-700 flex justify-between items-center">
                     <div class="flex items-center gap-4">
                         <span id="saveStatus" class="text-sm text-gray-400">請選擇或建立筆記</span>
                     </div>
                     <div class="flex items-center gap-3">
+                        <button id="viewModeBtn" class="bg-purple-600 hover:bg-purple-700 text-white py-2 px-4 rounded-lg disabled:bg-gray-600 disabled:cursor-not-allowed" disabled>
+                            🗺️ 思維導圖
+                        </button>
                         <button id="toggleModeBtn" class="bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg disabled:bg-gray-600 disabled:cursor-not-allowed" disabled>
                             ✏️ 編輯
                         </button>
@@ -184,14 +347,15 @@
                         <h3 class="text-xl font-bold text-blue-400 mb-3">✨ 功能特色</h3>
                         <ul class="list-disc list-inside space-y-2 text-gray-300">
                             <li>📄 支援完整 GitHub Flavored Markdown (GFM) 語法</li>
+                            <li>🗺️ 思維導圖視圖：將筆記轉換為互動式心智圖</li>
                             <li>🎨 程式碼語法高亮：支援 180+ 種程式語言</li>
                             <li>✅ 支援任務列表、表格、刪除線等 GFM 擴展語法</li>
-                            <li>✏️ 雙模式切換：Markdown 閱讀模式 ⇄ 即時編輯模式</li>
+                            <li>✏️ 三種視圖模式：閱讀 / 編輯 / 思維導圖</li>
                             <li>🔍 全文檢索：即時搜尋標題和內容，關鍵字高亮顯示</li>
                             <li>📤📥 資料匯出/匯入：支援備份和還原所有筆記</li>
                             <li>📅 時間標記：自動記錄建立時間與最後更新時間</li>
                             <li>💾 自動儲存：編輯後 1.5 秒自動儲存</li>
-                            <li>🌓 深色模式：護眼深色界面設計</li>
+                            <li>🌓 純黑深色模式：OLED 友善的純黑界面</li>
                             <li>🔐 安全保護：防止 XSS 攻擊</li>
                         </ul>
                     </section>
@@ -217,7 +381,19 @@
                             </div>
 
                             <div>
-                                <h4 class="font-semibold text-gray-100 mb-2">3️⃣ 刪除筆記</h4>
+                                <h4 class="font-semibold text-gray-100 mb-2">3️⃣ 思維導圖視圖</h4>
+                                <p class="text-gray-300 ml-4">
+                                    • 選擇筆記後，點擊右下角「🗺️ 思維導圖」按鈕<br>
+                                    • 筆記會自動轉換為彩色互動式心智圖<br>
+                                    • 點擊節點圓圈可展開/收起分支<br>
+                                    • 滾動滑鼠滾輪可縮放視圖<br>
+                                    • 拖曳可移動視圖位置<br>
+                                    • 點擊「📄 返回閱讀」返回正常視圖
+                                </p>
+                            </div>
+
+                            <div>
+                                <h4 class="font-semibold text-gray-100 mb-2">4️⃣ 刪除筆記</h4>
                                 <p class="text-gray-300 ml-4">選擇筆記後，點擊右下角「🗑️ 刪除筆記」按鈕，確認後即可刪除。</p>
                             </div>
                         </div>
@@ -290,6 +466,7 @@
                                 <p class="text-blue-400 mb-1">程式碼：</p>
                                 <p>`行內程式碼`</p>
                                 <p>```javascript<br>// 程式碼區塊（支援語法高亮）<br>console.log('Hello');<br>```</p>
+                                <p class="text-xs text-gray-500 mt-1">* 思維導圖中，程式碼會以深灰背景顯示</p>
                             </div>
                             <div>
                                 <p class="text-blue-400 mb-1">引用與分隔線：</p>
@@ -321,7 +498,8 @@
                     <section class="border-t border-gray-700 pt-4">
                         <h3 class="text-lg font-bold text-gray-400 mb-2">🔧 技術資訊</h3>
                         <p class="text-gray-400 text-sm">
-                            本應用使用 Tailwind CSS、marked.js（Markdown 渲染）、highlight.js（程式碼語法高亮）、DOMPurify（安全防護）開發。<br>
+                            本應用使用 Tailwind CSS、marked.js（Markdown 渲染）、highlight.js（程式碼語法高亮）、<br>
+                            markmap（思維導圖）、D3.js（資料視覺化）、DOMPurify（安全防護）開發。<br>
                             純前端應用，無需伺服器，可離線使用。
                         </p>
                     </section>
@@ -366,7 +544,10 @@
         let currentNoteId = null;
         let autoSaveTimeout = null;
         let isEditMode = true; // true: 编辑模式, false: 预览模式
+        let isMarkmapView = false; // true: 思维导图视图, false: 正常视图
         let searchQuery = ''; // 搜索关键字
+        let markmapInstance = null; // Markmap实例
+        const markmapTransformer = typeof markmap !== 'undefined' ? new markmap.Transformer() : null;
 
         // Elements
         const els = {
@@ -378,8 +559,11 @@
             deleteNoteBtn: document.getElementById('deleteNoteBtn'),
             saveStatus: document.getElementById('saveStatus'),
             toggleModeBtn: document.getElementById('toggleModeBtn'),
+            viewModeBtn: document.getElementById('viewModeBtn'),
             editorSection: document.getElementById('editorSection'),
             previewSection: document.getElementById('previewSection'),
+            markmapSection: document.getElementById('markmapSection'),
+            markmapSvg: document.getElementById('markmapSvg'),
             searchInput: document.getElementById('searchInput'),
             clearSearchBtn: document.getElementById('clearSearchBtn'),
             searchStats: document.getElementById('searchStats'),
@@ -501,6 +685,8 @@
             els.noteContent.value = note.content;
             els.deleteNoteBtn.disabled = false;
             els.toggleModeBtn.disabled = false;
+            els.viewModeBtn.disabled = false;
+            isMarkmapView = false;
             setEditMode(true);
             renderMarkdown(note.content);
             updateTimestampDisplay(note);
@@ -517,6 +703,8 @@
             els.noteContent.value = note.content;
             els.deleteNoteBtn.disabled = false;
             els.toggleModeBtn.disabled = false;
+            els.viewModeBtn.disabled = false;
+            isMarkmapView = false;
 
             // 默认进入预览模式（Markdown 渲染模式）
             setEditMode(false);
@@ -528,6 +716,15 @@
 
         function setEditMode(editMode) {
             isEditMode = editMode;
+
+            // 如果之前在markmap视图，先退出
+            if (isMarkmapView) {
+                isMarkmapView = false;
+                els.markmapSection.classList.add('hidden');
+                els.markmapSection.classList.remove('flex');
+                els.viewModeBtn.innerHTML = '🗺️ 思維導圖';
+                els.viewModeBtn.className = 'bg-purple-600 hover:bg-purple-700 text-white py-2 px-4 rounded-lg';
+            }
 
             if (isEditMode) {
                 // 编辑模式：显示编辑器和Markdown预览
@@ -586,8 +783,12 @@
             els.noteContent.disabled = true;
             els.deleteNoteBtn.disabled = true;
             els.toggleModeBtn.disabled = true;
+            els.viewModeBtn.disabled = true;
             els.saveStatus.textContent = '請選擇或建立筆記';
             els.markdownPreview.innerHTML = '<p class="text-gray-500">Markdown 渲染區域</p>';
+            isMarkmapView = false;
+            els.markmapSection.classList.add('hidden');
+            els.markmapSection.classList.remove('flex');
             updateTimestampDisplay(null);
 
             renderNoteList();
@@ -599,6 +800,142 @@
                 els.markdownPreview.innerHTML = html || '<p class="text-gray-500">預覽區域</p>';
             } catch (e) {
                 console.error('Markdown error:', e);
+            }
+        }
+
+        function renderMarkmap(text) {
+            if (!markmapTransformer || !text) {
+                return;
+            }
+
+            try {
+                const { root } = markmapTransformer.transform(text);
+
+                // 优化后的配色方案 - 更鲜艳、对比度更高
+                const vibrantColors = [
+                    '#3b82f6',  // 鲜艳蓝色 - 第一层（根节点）
+                    '#10b981',  // 翠绿色 - 第二层
+                    '#f59e0b',  // 金黄色 - 第三层
+                    '#ec4899',  // 粉红色 - 第四层
+                    '#8b5cf6',  // 紫色 - 第五层
+                    '#06b6d4',  // 青色 - 第六层
+                    '#f97316',  // 橙色 - 第七层
+                    '#14b8a6'   // 蓝绿色 - 第八层
+                ];
+
+                const markmapOptions = {
+                    duration: 500,
+                    nodeFont: '500 18px "Microsoft JhengHei", "Microsoft YaHei", -apple-system, BlinkMacSystemFont, sans-serif',
+                    paddingX: 15,
+                    spacingVertical: 15,
+                    spacingHorizontal: 100,
+                    // 节点颜色函数
+                    color: (node) => {
+                        const depth = node.state?.depth || 0;
+                        return vibrantColors[depth % vibrantColors.length];
+                    },
+                    // 自定义样式
+                    style: (id) => `
+                        #${id} {
+                            font-family: "Microsoft JhengHei", "Microsoft YaHei", sans-serif;
+                        }
+                        #${id} .markmap-node > circle {
+                            fill: currentColor;
+                            stroke: currentColor;
+                            filter: brightness(1.2) drop-shadow(0 0 8px currentColor);
+                        }
+                        #${id} .markmap-link {
+                            stroke: currentColor;
+                            stroke-width: 2.5px;
+                            opacity: 0.5;
+                        }
+                        #${id} text {
+                            fill: #f3f4f6;
+                            font-weight: 500;
+                            paint-order: stroke fill;
+                            stroke: #000;
+                            stroke-width: 3px;
+                            stroke-linecap: round;
+                            stroke-linejoin: round;
+                        }
+                        #${id} code {
+                            background-color: #1e1e1e !important;
+                            color: #d4d4d4 !important;
+                            padding: 3px 8px !important;
+                            border-radius: 4px !important;
+                            font-family: 'Consolas', 'Monaco', 'Courier New', monospace !important;
+                            font-size: 14px !important;
+                            font-weight: 400 !important;
+                            border: 1px solid #3a3a3a !important;
+                            text-shadow: none !important;
+                        }
+                        #${id} pre {
+                            background-color: #1e1e1e !important;
+                            color: #d4d4d4 !important;
+                            padding: 12px !important;
+                            border-radius: 6px !important;
+                            border: 1px solid #3a3a3a !important;
+                            margin: 4px 0 !important;
+                        }
+                        #${id} pre code {
+                            background-color: transparent !important;
+                            border: none !important;
+                            padding: 0 !important;
+                        }
+                    `
+                };
+
+                if (markmapInstance) {
+                    markmapInstance.setData(root, markmapOptions);
+                } else {
+                    markmapInstance = markmap.Markmap.create(els.markmapSvg, markmapOptions, root);
+                }
+
+                // 自动适配视图
+                setTimeout(() => {
+                    if (markmapInstance && markmapInstance.fit) {
+                        markmapInstance.fit();
+                    }
+                }, 150);
+            } catch (e) {
+                console.error('Markmap error:', e);
+            }
+        }
+
+        function toggleViewMode() {
+            if (!currentNoteId) return;
+
+            isMarkmapView = !isMarkmapView;
+
+            if (isMarkmapView) {
+                // 切换到思维导图视图
+                els.editorSection.classList.add('hidden');
+                els.previewSection.classList.add('hidden');
+                els.markmapSection.classList.remove('hidden');
+                els.markmapSection.classList.add('flex');
+                els.viewModeBtn.innerHTML = '📄 返回閱讀';
+                els.viewModeBtn.className = 'bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-lg';
+
+                // 渲染markmap
+                const note = notes.find(n => n.id === currentNoteId);
+                if (note) {
+                    renderMarkmap(note.content);
+                }
+            } else {
+                // 返回正常视图
+                els.markmapSection.classList.add('hidden');
+                els.markmapSection.classList.remove('flex');
+
+                if (isEditMode) {
+                    els.editorSection.classList.remove('hidden');
+                    els.previewSection.classList.remove('hidden');
+                } else {
+                    els.editorSection.classList.add('hidden');
+                    els.previewSection.classList.remove('hidden');
+                }
+
+                els.viewModeBtn.innerHTML = '🗺️ 思維導圖';
+                els.viewModeBtn.className = 'bg-purple-600 hover:bg-purple-700 text-white py-2 px-4 rounded-lg';
             }
         }
 
@@ -767,7 +1104,10 @@
                         els.noteContent.disabled = true;
                         els.deleteNoteBtn.disabled = true;
                         els.toggleModeBtn.disabled = true;
+                        els.viewModeBtn.disabled = true;
                         els.markdownPreview.innerHTML = '<p class="text-gray-500">Markdown 渲染區域</p>';
+                        isMarkmapView = false;
+                        els.markmapSection.classList.add('hidden');
                         updateTimestampDisplay(null);
                     }
 
@@ -815,6 +1155,7 @@
         els.newNoteBtn.addEventListener('click', createNote);
         els.deleteNoteBtn.addEventListener('click', deleteNote);
         els.toggleModeBtn.addEventListener('click', toggleMode);
+        els.viewModeBtn.addEventListener('click', toggleViewMode);
 
         // Export/Import events
         els.exportBtn.addEventListener('click', exportData);
