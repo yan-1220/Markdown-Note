@@ -221,6 +221,47 @@
             font-weight: 400 !important;
             border: 1px solid #3a3a3a !important;
         }
+
+        /* 全屏模式样式 */
+        .fullscreen-mode {
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            right: 0 !important;
+            bottom: 0 !important;
+            width: 100vw !important;
+            height: 100vh !important;
+            z-index: 9999 !important;
+            background-color: #000000 !important;
+            flex: none !important;
+        }
+
+        .fullscreen-mode .fullscreen-content {
+            width: 100% !important;
+            height: calc(100% - 48px) !important;
+        }
+
+        /* 全屏时的标题栏 */
+        .fullscreen-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 16px;
+            background-color: #0a0a0a;
+            border-bottom: 1px solid #2a2a2a;
+        }
+
+        /* 全屏按钮样式 */
+        .fullscreen-btn {
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 4px;
+            transition: background-color 0.2s;
+        }
+
+        .fullscreen-btn:hover {
+            background-color: rgba(59, 130, 246, 0.2);
+        }
     </style>
 </head>
 <body class="bg-gray-900">
@@ -294,18 +335,24 @@
                                   class="flex-1 p-4 outline-none resize-none font-mono text-sm bg-gray-800 text-gray-100 placeholder-gray-500" disabled></textarea>
                     </div>
                     <div id="previewSection" class="flex-1 flex flex-col">
-                        <div class="p-2 bg-gray-900 border-b border-gray-700">
+                        <div class="p-2 bg-gray-900 border-b border-gray-700 flex justify-between items-center">
                             <span class="text-sm font-semibold text-gray-300">📄 Markdown</span>
+                            <button id="previewFullscreenBtn" class="fullscreen-btn text-gray-400 hover:text-gray-200 text-lg" title="全屏查看">
+                                ⛶
+                            </button>
                         </div>
-                        <div id="markdownPreview" class="flex-1 p-4 overflow-y-auto markdown-preview text-gray-100">
+                        <div id="markdownPreview" class="fullscreen-content flex-1 p-4 overflow-y-auto markdown-preview text-gray-100">
                             <p class="text-gray-500">Markdown 渲染區域</p>
                         </div>
                     </div>
                     <div id="markmapSection" class="hidden flex-1 flex-col">
-                        <div class="p-2 bg-gray-900 border-b border-gray-700">
+                        <div class="p-2 bg-gray-900 border-b border-gray-700 flex justify-between items-center">
                             <span class="text-sm font-semibold text-gray-300">🗺️ 思維導圖</span>
+                            <button id="markmapFullscreenBtn" class="fullscreen-btn text-gray-400 hover:text-gray-200 text-lg" title="全屏查看">
+                                ⛶
+                            </button>
                         </div>
-                        <div id="markmapContainer" class="flex-1">
+                        <div id="markmapContainer" class="fullscreen-content flex-1">
                             <svg id="markmapSvg"></svg>
                         </div>
                     </div>
@@ -348,6 +395,7 @@
                         <ul class="list-disc list-inside space-y-2 text-gray-300">
                             <li>📄 支援完整 GitHub Flavored Markdown (GFM) 語法</li>
                             <li>🗺️ 思維導圖視圖：將筆記轉換為互動式心智圖</li>
+                            <li>⛶ 全屏模式：Markdown 與思維導圖可切換為全瀏覽器範圍查看</li>
                             <li>🎨 程式碼語法高亮：支援 180+ 種程式語言</li>
                             <li>✅ 支援任務列表、表格、刪除線等 GFM 擴展語法</li>
                             <li>✏️ 三種視圖模式：閱讀 / 編輯 / 思維導圖</li>
@@ -393,7 +441,17 @@
                             </div>
 
                             <div>
-                                <h4 class="font-semibold text-gray-100 mb-2">4️⃣ 刪除筆記</h4>
+                                <h4 class="font-semibold text-gray-100 mb-2">4️⃣ 全屏模式</h4>
+                                <p class="text-gray-300 ml-4">
+                                    • 在 Markdown 閱讀模式或思維導圖模式下，點擊右上角的 ⛶ 按鈕進入全屏<br>
+                                    • 全屏模式下可以更專注地閱讀或查看思維導圖<br>
+                                    • 點擊 ⛉ 按鈕或按 ESC 鍵退出全屏<br>
+                                    • 全屏模式會自動調整視圖大小以最佳化顯示
+                                </p>
+                            </div>
+
+                            <div>
+                                <h4 class="font-semibold text-gray-100 mb-2">5️⃣ 刪除筆記</h4>
                                 <p class="text-gray-300 ml-4">選擇筆記後，點擊右下角「🗑️ 刪除筆記」按鈕，確認後即可刪除。</p>
                             </div>
                         </div>
@@ -577,7 +635,9 @@
             helpBtn: document.getElementById('helpBtn'),
             helpModal: document.getElementById('helpModal'),
             closeHelpBtn: document.getElementById('closeHelpBtn'),
-            closeHelpBtn2: document.getElementById('closeHelpBtn2')
+            closeHelpBtn2: document.getElementById('closeHelpBtn2'),
+            previewFullscreenBtn: document.getElementById('previewFullscreenBtn'),
+            markmapFullscreenBtn: document.getElementById('markmapFullscreenBtn')
         };
 
         // Notes
@@ -1148,6 +1208,53 @@
             document.body.style.overflow = ''; // 恢复滚动
         }
 
+        // Fullscreen Functions
+        function toggleFullscreen(section, btn) {
+            const isFullscreen = section.classList.contains('fullscreen-mode');
+
+            if (isFullscreen) {
+                // 退出全屏
+                section.classList.remove('fullscreen-mode');
+                btn.innerHTML = '⛶';
+                btn.title = '全屏查看';
+                document.body.style.overflow = ''; // 恢复滚动
+
+                // 如果是思维导图，需要重新适配视图
+                if (section === els.markmapSection && markmapInstance) {
+                    setTimeout(() => {
+                        if (markmapInstance && markmapInstance.fit) {
+                            markmapInstance.fit();
+                        }
+                    }, 150);
+                }
+            } else {
+                // 进入全屏
+                section.classList.add('fullscreen-mode');
+                btn.innerHTML = '⛉';
+                btn.title = '退出全屏 (ESC)';
+                document.body.style.overflow = 'hidden'; // 禁止背景滚动
+
+                // 如果是思维导图，需要重新适配视图
+                if (section === els.markmapSection && markmapInstance) {
+                    setTimeout(() => {
+                        if (markmapInstance && markmapInstance.fit) {
+                            markmapInstance.fit();
+                        }
+                    }, 150);
+                }
+            }
+        }
+
+        function exitAllFullscreen() {
+            // 退出所有全屏
+            if (els.previewSection.classList.contains('fullscreen-mode')) {
+                toggleFullscreen(els.previewSection, els.previewFullscreenBtn);
+            }
+            if (els.markmapSection.classList.contains('fullscreen-mode')) {
+                toggleFullscreen(els.markmapSection, els.markmapFullscreenBtn);
+            }
+        }
+
         // Make selectNote global
         window.selectNote = selectNote;
 
@@ -1174,10 +1281,31 @@
             }
         });
 
-        // ESC 键关闭模态框
+        // Fullscreen events
+        els.previewFullscreenBtn.addEventListener('click', () => {
+            toggleFullscreen(els.previewSection, els.previewFullscreenBtn);
+        });
+
+        els.markmapFullscreenBtn.addEventListener('click', () => {
+            toggleFullscreen(els.markmapSection, els.markmapFullscreenBtn);
+        });
+
+        // ESC 键关闭模态框或退出全屏
         document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape' && !els.helpModal.classList.contains('hidden')) {
-                closeHelpModal();
+            if (e.key === 'Escape') {
+                // 优先关闭帮助模态框
+                if (!els.helpModal.classList.contains('hidden')) {
+                    closeHelpModal();
+                }
+                // 然后退出全屏
+                else if (els.previewSection.classList.contains('fullscreen-mode') ||
+                         els.markmapSection.classList.contains('fullscreen-mode')) {
+                    exitAllFullscreen();
+                }
+                // 最后清除搜索
+                else if (els.searchInput.value) {
+                    clearSearch();
+                }
             }
         });
 
@@ -1187,13 +1315,6 @@
         });
 
         els.clearSearchBtn.addEventListener('click', clearSearch);
-
-        // Enter key to search
-        els.searchInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape') {
-                clearSearch();
-            }
-        });
 
         const debouncedSave = debounce((data) => updateNote(data), 1500);
 
