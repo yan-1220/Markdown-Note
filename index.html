@@ -7,6 +7,8 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.6/dist/purify.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
     <style>
         .note-list-item { transition: background-color 0.2s; }
         .note-list-item:hover { background-color: rgba(59, 130, 246, 0.2); }
@@ -30,6 +32,14 @@
         .markdown-preview a:hover { color: #93c5fd; }
         .markdown-preview hr { border: none; border-top: 1px solid #4b5563; margin: 1.5em 0; }
         .markdown-preview img { max-width: 100%; height: auto; border-radius: 5px; margin: 1em 0; }
+        .markdown-preview del { text-decoration: line-through; opacity: 0.7; }
+        .markdown-preview strong { font-weight: bold; }
+        .markdown-preview em { font-style: italic; }
+        .markdown-preview ul.contains-task-list { list-style: none; margin-left: 0; padding-left: 0; }
+        .markdown-preview input[type="checkbox"] { margin-right: 0.5em; cursor: pointer; }
+        .markdown-preview input[type="checkbox"]:disabled { cursor: default; }
+        .markdown-preview sup { vertical-align: super; font-size: smaller; }
+        .markdown-preview sub { vertical-align: sub; font-size: smaller; }
         #noteTitle:disabled { opacity: 1; cursor: default; }
     </style>
 </head>
@@ -145,7 +155,9 @@
                     <section>
                         <h3 class="text-xl font-bold text-blue-400 mb-3">✨ 功能特色</h3>
                         <ul class="list-disc list-inside space-y-2 text-gray-300">
-                            <li>📄 支援完整 Markdown 語法（標題、列表、表格、程式碼等）</li>
+                            <li>📄 支援完整 GitHub Flavored Markdown (GFM) 語法</li>
+                            <li>🎨 程式碼語法高亮：支援 180+ 種程式語言</li>
+                            <li>✅ 支援任務列表、表格、刪除線等 GFM 擴展語法</li>
                             <li>✏️ 雙模式切換：Markdown 閱讀模式 ⇄ 即時編輯模式</li>
                             <li>🔍 全文檢索：即時搜尋標題和內容，關鍵字高亮顯示</li>
                             <li>📤📥 資料匯出/匯入：支援備份和還原所有筆記</li>
@@ -225,19 +237,43 @@
                     <!-- Markdown 語法 -->
                     <section>
                         <h3 class="text-xl font-bold text-pink-400 mb-3">📝 Markdown 語法參考</h3>
-                        <div class="bg-gray-900 p-4 rounded-lg text-sm space-y-2 font-mono text-gray-300">
-                            <p># 標題 1</p>
-                            <p>## 標題 2</p>
-                            <p>### 標題 3</p>
-                            <p class="mt-3">**粗體文字**</p>
-                            <p>*斜體文字*</p>
-                            <p class="mt-3">- 項目列表</p>
-                            <p>1. 編號列表</p>
-                            <p class="mt-3">[連結文字](https://example.com)</p>
-                            <p>![圖片描述](圖片網址)</p>
-                            <p class="mt-3">`程式碼`</p>
-                            <p>```<br>程式碼區塊<br>```</p>
-                            <p class="mt-3">&gt; 引用文字</p>
+                        <div class="bg-gray-900 p-4 rounded-lg text-sm space-y-3 font-mono text-gray-300">
+                            <div>
+                                <p class="text-blue-400 mb-1">標題：</p>
+                                <p># 標題 1  ## 標題 2  ### 標題 3</p>
+                            </div>
+                            <div>
+                                <p class="text-blue-400 mb-1">文字樣式：</p>
+                                <p>**粗體** *斜體* ~~刪除線~~</p>
+                            </div>
+                            <div>
+                                <p class="text-blue-400 mb-1">列表：</p>
+                                <p>- 項目列表</p>
+                                <p>1. 編號列表</p>
+                                <p>- [ ] 任務列表（未完成）</p>
+                                <p>- [x] 任務列表（已完成）</p>
+                            </div>
+                            <div>
+                                <p class="text-blue-400 mb-1">連結與圖片：</p>
+                                <p>[連結文字](https://example.com)</p>
+                                <p>![圖片描述](圖片網址)</p>
+                            </div>
+                            <div>
+                                <p class="text-blue-400 mb-1">程式碼：</p>
+                                <p>`行內程式碼`</p>
+                                <p>```javascript<br>// 程式碼區塊（支援語法高亮）<br>console.log('Hello');<br>```</p>
+                            </div>
+                            <div>
+                                <p class="text-blue-400 mb-1">引用與分隔線：</p>
+                                <p>&gt; 引用文字</p>
+                                <p>---</p>
+                            </div>
+                            <div>
+                                <p class="text-blue-400 mb-1">表格：</p>
+                                <p>| 欄位1 | 欄位2 |</p>
+                                <p>|-------|-------|</p>
+                                <p>| 內容1 | 內容2 |</p>
+                            </div>
                         </div>
                     </section>
 
@@ -257,7 +293,7 @@
                     <section class="border-t border-gray-700 pt-4">
                         <h3 class="text-lg font-bold text-gray-400 mb-2">🔧 技術資訊</h3>
                         <p class="text-gray-400 text-sm">
-                            本應用使用 Tailwind CSS、marked.js（Markdown 渲染）、DOMPurify（安全防護）開發。<br>
+                            本應用使用 Tailwind CSS、marked.js（Markdown 渲染）、highlight.js（程式碼語法高亮）、DOMPurify（安全防護）開發。<br>
                             純前端應用，無需伺服器，可離線使用。
                         </p>
                     </section>
@@ -275,6 +311,27 @@
 
     <script>
         console.log('Script started');
+
+        // Configure marked.js for full GFM support
+        marked.setOptions({
+            gfm: true,              // GitHub Flavored Markdown
+            breaks: true,           // Convert \n to <br>
+            pedantic: false,
+            sanitize: false,        // We use DOMPurify instead
+            smartLists: true,
+            smartypants: false,
+            highlight: function(code, lang) {
+                // Use highlight.js for syntax highlighting
+                if (lang && hljs.getLanguage(lang)) {
+                    try {
+                        return hljs.highlight(code, { language: lang }).value;
+                    } catch (err) {
+                        console.error('Highlight error:', err);
+                    }
+                }
+                return code;
+            }
+        });
 
         // State
         let notes = [];
