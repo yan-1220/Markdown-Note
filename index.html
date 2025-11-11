@@ -13,6 +13,8 @@
     <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
     <script src="https://cdn.jsdelivr.net/npm/markmap-lib"></script>
     <script src="https://cdn.jsdelivr.net/npm/markmap-view"></script>
+    <!-- Dexie.js for IndexedDB -->
+    <script src="https://unpkg.com/dexie@3.2.4/dist/dexie.js"></script>
     <style>
         /* 纯黑色背景主题 */
         body { background-color: #000000 !important; }
@@ -324,10 +326,10 @@
             <div class="container mx-auto flex justify-between items-center">
                 <h1 class="text-2xl font-bold">📝 Markdown Note Cloud</h1>
                 <div class="flex items-center gap-3">
+                    <span id="dbStatus" class="text-sm text-gray-400">💾 IndexedDB 儲存模式</span>
                     <button id="helpBtn" class="bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg text-sm font-semibold">
                         ❓ 使用說明
                     </button>
-                    <span class="text-sm text-gray-300">本地儲存模式</span>
                 </div>
             </div>
         </header>
@@ -401,7 +403,20 @@
                     </div>
                     <div id="markmapSection" class="hidden flex-1 flex-col">
                         <div class="p-2 bg-gray-900 border-b border-gray-700 flex justify-between items-center">
-                            <span class="text-sm font-semibold text-gray-300">🗺️ 思維導圖</span>
+                            <div class="flex items-center gap-2">
+                                <span class="text-sm font-semibold text-gray-300">🗺️ 思維導圖</span>
+                                <div class="flex gap-1">
+                                    <button id="expandAllBtn" class="bg-green-600 hover:bg-green-700 text-white text-xs py-1 px-3 rounded transition-colors" title="展開所有節點">
+                                        ➕ 全部展開
+                                    </button>
+                                    <button id="collapseAllBtn" class="bg-orange-600 hover:bg-orange-700 text-white text-xs py-1 px-3 rounded transition-colors" title="摺疊所有節點">
+                                        ➖ 全部摺疊
+                                    </button>
+                                    <button id="fitViewBtn" class="bg-blue-600 hover:bg-blue-700 text-white text-xs py-1 px-3 rounded transition-colors" title="適配視圖">
+                                        🎯 適配視圖
+                                    </button>
+                                </div>
+                            </div>
                             <button id="markmapFullscreenBtn" class="fullscreen-btn text-gray-400 hover:text-gray-200 text-lg" title="全屏查看">
                                 ⛶
                             </button>
@@ -447,6 +462,7 @@
                     <section>
                         <h3 class="text-xl font-bold text-blue-400 mb-3">✨ 功能特色</h3>
                         <ul class="list-disc list-inside space-y-2 text-gray-300">
+                            <li><strong class="text-green-400">🚀 IndexedDB 儲存：</strong>開箱即用，無需設定，自動儲存所有筆記</li>
                             <li>📄 支援完整 GitHub Flavored Markdown (GFM) 語法</li>
                             <li>🗺️ 思維導圖視圖：將筆記轉換為互動式心智圖</li>
                             <li>⛶ 全屏模式：Markdown 與思維導圖可切換為全瀏覽器範圍查看</li>
@@ -457,7 +473,7 @@
                             <li>🔍 全文檢索：即時搜尋標題和內容，關鍵字高亮顯示</li>
                             <li>📤📥 資料匯出/匯入：支援備份和還原所有筆記</li>
                             <li>📅 時間標記：自動記錄建立時間與最後更新時間</li>
-                            <li>💾 自動儲存：編輯後 1.5 秒自動儲存</li>
+                            <li>💾 自動儲存：編輯後 1.5 秒自動儲存到 IndexedDB</li>
                             <li>🌓 純黑深色模式：OLED 友善的純黑界面</li>
                             <li>🔐 安全保護：防止 XSS 攻擊</li>
                         </ul>
@@ -527,6 +543,50 @@
                         </div>
                     </section>
 
+                    <!-- 儲存系統 -->
+                    <section>
+                        <h3 class="text-xl font-bold text-orange-400 mb-3">💾 IndexedDB 儲存系統</h3>
+
+                        <div class="space-y-4">
+                            <div>
+                                <h4 class="font-semibold text-gray-100 mb-2">🚀 開箱即用</h4>
+                                <p class="text-gray-300 ml-4">
+                                    應用程式使用瀏覽器內建的 <strong>IndexedDB</strong> 資料庫自動儲存所有筆記。<br>
+                                    無需任何設定或選擇目錄，開啟即可使用！<br>
+                                    <span class="text-green-400">✅ 比 localStorage 更快、更穩定、容量更大</span>
+                                </p>
+                            </div>
+
+                            <div>
+                                <h4 class="font-semibold text-gray-100 mb-2">💾 自動儲存</h4>
+                                <p class="text-gray-300 ml-4">
+                                    所有的筆記修改都會在 1.5 秒後自動儲存到 IndexedDB。<br>
+                                    資料儲存在瀏覽器本地，完全離線可用，不會上傳到網路。<br>
+                                    右上角會顯示當前已載入的筆記數量。
+                                </p>
+                            </div>
+
+                            <div>
+                                <h4 class="font-semibold text-gray-100 mb-2">🔄 資料遷移</h4>
+                                <p class="text-gray-300 ml-4">
+                                    如果您之前使用舊版本（localStorage 儲存），首次開啟時會自動檢測並提示您遷移資料。<br>
+                                    選擇「確定」後，系統會將所有舊資料自動轉移到新的 IndexedDB 資料庫中。
+                                </p>
+                            </div>
+
+                            <div class="bg-blue-900/30 p-3 rounded-lg">
+                                <h4 class="font-semibold text-blue-300 mb-2">ℹ️ 關於 IndexedDB</h4>
+                                <p class="text-gray-300 text-sm ml-4">
+                                    IndexedDB 是瀏覽器內建的 NoSQL 資料庫，提供：<br>
+                                    • 更大的儲存空間（通常 50MB 起跳，某些瀏覽器無限制）<br>
+                                    • 更快的讀寫速度<br>
+                                    • 支援索引和複雜查詢<br>
+                                    • 資料持久保存（除非手動清除瀏覽器資料）
+                                </p>
+                            </div>
+                        </div>
+                    </section>
+
                     <!-- 匯出匯入 -->
                     <section>
                         <h3 class="text-xl font-bold text-yellow-400 mb-3">💾 資料備份與還原</h3>
@@ -536,7 +596,8 @@
                                 <h4 class="font-semibold text-gray-100 mb-2">📤 匯出資料</h4>
                                 <p class="text-gray-300 ml-4">
                                     點擊左側面板的「📤 匯出」按鈕，系統會將所有筆記匯出為 JSON 格式檔案。<br>
-                                    檔案名稱格式：<code class="bg-gray-700 px-2 py-1 rounded">markdown-notes-backup-YYYY-MM-DD-HH-MM-SS.json</code>
+                                    檔案名稱格式：<code class="bg-gray-700 px-2 py-1 rounded">markdown-notes-backup-YYYY-MM-DD-HH-MM-SS.json</code><br>
+                                    <span class="text-blue-400">💡 提示：現在您已經有自動儲存的 JSON 檔案，匯出功能主要用於建立額外的備份。</span>
                                 </p>
                             </div>
 
@@ -602,12 +663,15 @@
                     <section>
                         <h3 class="text-xl font-bold text-cyan-400 mb-3">💡 使用提示</h3>
                         <ul class="list-disc list-inside space-y-2 text-gray-300">
-                            <li>所有資料儲存在瀏覽器本地（localStorage），不會上傳到網路</li>
-                            <li>建議定期使用「匯出」功能備份重要筆記</li>
-                            <li>清除瀏覽器資料會導致筆記遺失，請務必先備份</li>
+                            <li><strong class="text-green-400">開箱即用！</strong> 使用 IndexedDB 資料庫自動儲存，無需任何設定</li>
+                            <li>所有資料儲存在瀏覽器本地，完全離線可用，不會上傳到網路</li>
                             <li>筆記按最後更新時間排序，最新的在最上方</li>
                             <li>編輯時會在 1.5 秒後自動儲存，避免資料遺失</li>
+                            <li>右上角顯示當前已載入的筆記數量</li>
+                            <li>定期使用「📤 匯出」功能備份重要筆記</li>
+                            <li>清除瀏覽器資料會導致筆記遺失，請務必先備份</li>
                             <li>編輯器與預覽區域的寬度比例會自動保存，可依個人習慣調整</li>
+                            <li><strong class="text-green-400">相容性：</strong> 支援所有現代瀏覽器（Chrome、Firefox、Safari、Edge 等）</li>
                         </ul>
                     </section>
 
@@ -656,6 +720,12 @@
             }
         });
 
+        // Initialize Dexie Database
+        const db = new Dexie('MarkdownNotesDB');
+        db.version(1).stores({
+            notes: 'id, title, content, createdAt, updatedAt'
+        });
+
         // State
         let notes = [];
         let currentNoteId = null;
@@ -698,19 +768,92 @@
             closeHelpBtn2: document.getElementById('closeHelpBtn2'),
             previewFullscreenBtn: document.getElementById('previewFullscreenBtn'),
             markmapFullscreenBtn: document.getElementById('markmapFullscreenBtn'),
-            resizeHandle: document.getElementById('resizeHandle')
+            resizeHandle: document.getElementById('resizeHandle'),
+            dbStatus: document.getElementById('dbStatus'),
+            expandAllBtn: document.getElementById('expandAllBtn'),
+            collapseAllBtn: document.getElementById('collapseAllBtn'),
+            fitViewBtn: document.getElementById('fitViewBtn')
         };
 
-        // Notes
-        function loadNotes() {
-            const saved = localStorage.getItem('demo-notes');
-            notes = saved ? JSON.parse(saved) : [];
-            notes.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
-            renderNoteList();
+        // Dexie Database Functions
+        async function loadNotes() {
+            try {
+                // 从 Dexie 加载所有笔记
+                notes = await db.notes.orderBy('updatedAt').reverse().toArray();
+
+                // 更新数据库状态
+                els.dbStatus.textContent = `💾 已載入 ${notes.length} 筆筆記`;
+                els.dbStatus.classList.remove('text-gray-400');
+                els.dbStatus.classList.add('text-green-400');
+
+                renderNoteList();
+
+                // 检查是否有 localStorage 的旧数据需要迁移
+                await migrateFromLocalStorage();
+            } catch (err) {
+                console.error('載入筆記失敗:', err);
+                els.dbStatus.textContent = '❌ 載入失敗';
+                els.dbStatus.classList.add('text-red-400');
+                notes = [];
+                renderNoteList();
+            }
         }
 
-        function saveNotes() {
-            localStorage.setItem('demo-notes', JSON.stringify(notes));
+        async function migrateFromLocalStorage() {
+            try {
+                // 检查 localStorage 中是否有旧数据
+                const oldData = localStorage.getItem('demo-notes');
+                if (!oldData) return;
+
+                const oldNotes = JSON.parse(oldData);
+                if (oldNotes.length === 0) return;
+
+                // 检查 Dexie 中是否已有数据
+                const existingCount = await db.notes.count();
+                if (existingCount > 0) {
+                    // 如果已有数据，询问用户
+                    const migrate = confirm(
+                        `檢測到 localStorage 中有 ${oldNotes.length} 筆舊資料\n` +
+                        `當前資料庫已有 ${existingCount} 筆資料\n\n` +
+                        `是否要合併舊資料到 IndexedDB？`
+                    );
+                    if (!migrate) return;
+                }
+
+                // 迁移数据到 Dexie
+                await db.notes.bulkPut(oldNotes);
+                notes = await db.notes.orderBy('updatedAt').reverse().toArray();
+                renderNoteList();
+
+                // 迁移成功后删除 localStorage 数据
+                localStorage.removeItem('demo-notes');
+
+                alert(`成功遷移 ${oldNotes.length} 筆筆記到 IndexedDB！`);
+                els.dbStatus.textContent = `💾 已載入 ${notes.length} 筆筆記`;
+            } catch (err) {
+                console.error('遷移數據失敗:', err);
+                alert('遷移舊資料失敗：' + err.message);
+            }
+        }
+
+        async function saveNoteToDb(note) {
+            try {
+                await db.notes.put(note);
+                console.log('筆記已保存到 IndexedDB:', note.id);
+            } catch (err) {
+                console.error('儲存筆記失敗:', err);
+                // 降级到 localStorage
+                localStorage.setItem('demo-notes-backup', JSON.stringify(notes));
+            }
+        }
+
+        async function deleteNoteFromDb(noteId) {
+            try {
+                await db.notes.delete(noteId);
+                console.log('筆記已從 IndexedDB 刪除:', noteId);
+            } catch (err) {
+                console.error('刪除筆記失敗:', err);
+            }
         }
 
         function renderNoteList() {
@@ -787,7 +930,7 @@
             els.searchInput.focus();
         }
 
-        function createNote() {
+        async function createNote() {
             console.log('Creating note...');
             const note = {
                 id: Date.now().toString(36),
@@ -796,8 +939,12 @@
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString()
             };
+
+            // 保存到 Dexie
+            await saveNoteToDb(note);
+
+            // 更新本地数组
             notes.unshift(note);
-            saveNotes();
             renderNoteList();
 
             // 新建笔记时直接进入编辑模式
@@ -811,7 +958,9 @@
             setEditMode(true);
             renderMarkdown(note.content);
             updateTimestampDisplay(note);
-            renderNoteList();
+
+            // 更新数据库状态
+            els.dbStatus.textContent = `💾 已載入 ${notes.length} 筆筆記`;
         }
 
         function selectNote(id) {
@@ -878,13 +1027,17 @@
             setEditMode(!isEditMode);
         }
 
-        function updateNote(data) {
+        async function updateNote(data) {
             const note = notes.find(n => n.id === currentNoteId);
             if (!note) return;
 
             Object.assign(note, data, { updatedAt: new Date().toISOString() });
+
+            // 保存到 Dexie
+            await saveNoteToDb(note);
+
+            // 重新排序
             notes.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
-            saveNotes();
             renderNoteList();
             updateTimestampDisplay(note);
 
@@ -896,11 +1049,14 @@
             }, 2000);
         }
 
-        function deleteNote() {
+        async function deleteNote() {
             if (!currentNoteId || !confirm('確定要刪除此筆記嗎？')) return;
 
+            // 从 Dexie 删除
+            await deleteNoteFromDb(currentNoteId);
+
+            // 从本地数组删除
             notes = notes.filter(n => n.id !== currentNoteId);
-            saveNotes();
 
             currentNoteId = null;
             els.noteTitle.value = '';
@@ -918,6 +1074,9 @@
             updateTimestampDisplay(null);
 
             renderNoteList();
+
+            // 更新数据库状态
+            els.dbStatus.textContent = `💾 已載入 ${notes.length} 筆筆記`;
         }
 
         function renderMarkdown(text) {
@@ -952,9 +1111,9 @@
                 const markmapOptions = {
                     duration: 500,
                     nodeFont: '500 18px "Microsoft JhengHei", "Microsoft YaHei", -apple-system, BlinkMacSystemFont, sans-serif',
-                    paddingX: 15,
-                    spacingVertical: 15,
-                    spacingHorizontal: 100,
+                    paddingX: 20,
+                    spacingVertical: 20,
+                    spacingHorizontal: 120,
                     // 节点颜色函数
                     color: (node) => {
                         const depth = node.state?.depth || 0;
@@ -965,16 +1124,39 @@
                         #${id} {
                             font-family: "Microsoft JhengHei", "Microsoft YaHei", sans-serif;
                         }
+                        /* 增大节点圆圈和点击区域 */
                         #${id} .markmap-node > circle {
                             fill: currentColor;
                             stroke: currentColor;
-                            filter: brightness(1.2) drop-shadow(0 0 8px currentColor);
+                            stroke-width: 3px;
+                            filter: brightness(1.2) drop-shadow(0 0 12px currentColor);
+                            r: 8 !important;
+                            cursor: pointer;
+                            transition: all 0.3s ease;
                         }
+                        #${id} .markmap-node > circle:hover {
+                            r: 12 !important;
+                            filter: brightness(1.4) drop-shadow(0 0 20px currentColor);
+                            stroke-width: 4px;
+                        }
+                        /* 增加节点的可点击区域 */
+                        #${id} .markmap-node {
+                            cursor: pointer;
+                        }
+                        /* 强化线条可视性 */
                         #${id} .markmap-link {
                             stroke: currentColor;
-                            stroke-width: 2.5px;
-                            opacity: 0.5;
+                            stroke-width: 4px;
+                            opacity: 0.75;
+                            transition: all 0.3s ease;
+                            filter: drop-shadow(0 0 4px currentColor);
                         }
+                        #${id} .markmap-link:hover {
+                            stroke-width: 6px;
+                            opacity: 1;
+                            filter: drop-shadow(0 0 8px currentColor);
+                        }
+                        /* 文字样式 */
                         #${id} text {
                             fill: #f3f4f6;
                             font-weight: 500;
@@ -983,7 +1165,9 @@
                             stroke-width: 3px;
                             stroke-linecap: round;
                             stroke-linejoin: round;
+                            pointer-events: none;
                         }
+                        /* 代码样式 */
                         #${id} code {
                             background-color: #1e1e1e !important;
                             color: #d4d4d4 !important;
@@ -1025,6 +1209,87 @@
                 }, 150);
             } catch (e) {
                 console.error('Markmap error:', e);
+            }
+        }
+
+        // Markmap 控制函数
+        function expandAllNodes() {
+            if (!markmapInstance) return;
+
+            try {
+                // 递归展开所有节点
+                const expandRecursive = (node) => {
+                    if (node.children && node.children.length > 0) {
+                        node.payload = node.payload || {};
+                        node.payload.fold = 0; // 0 表示展开
+                        node.children.forEach(child => expandRecursive(child));
+                    }
+                };
+
+                // 获取根节点并展开所有子节点
+                const state = markmapInstance.state;
+                if (state && state.data) {
+                    expandRecursive(state.data);
+                    markmapInstance.setData(state.data);
+
+                    // 展开后适配视图
+                    setTimeout(() => {
+                        if (markmapInstance.fit) {
+                            markmapInstance.fit();
+                        }
+                    }, 300);
+                }
+
+                console.log('已展開所有節點');
+            } catch (e) {
+                console.error('展開節點失敗:', e);
+            }
+        }
+
+        function collapseAllNodes() {
+            if (!markmapInstance) return;
+
+            try {
+                // 递归折叠所有节点（保留第一层）
+                const collapseRecursive = (node, depth = 0) => {
+                    if (node.children && node.children.length > 0) {
+                        node.payload = node.payload || {};
+                        // 第一层展开，其他层折叠
+                        node.payload.fold = depth >= 1 ? 1 : 0; // 1 表示折叠
+                        node.children.forEach(child => collapseRecursive(child, depth + 1));
+                    }
+                };
+
+                // 获取根节点并折叠所有子节点
+                const state = markmapInstance.state;
+                if (state && state.data) {
+                    collapseRecursive(state.data);
+                    markmapInstance.setData(state.data);
+
+                    // 折叠后适配视图
+                    setTimeout(() => {
+                        if (markmapInstance.fit) {
+                            markmapInstance.fit();
+                        }
+                    }, 300);
+                }
+
+                console.log('已摺疊所有節點');
+            } catch (e) {
+                console.error('摺疊節點失敗:', e);
+            }
+        }
+
+        function fitMarkmapView() {
+            if (!markmapInstance) return;
+
+            try {
+                if (markmapInstance.fit) {
+                    markmapInstance.fit();
+                    console.log('已適配視圖');
+                }
+            } catch (e) {
+                console.error('適配視圖失敗:', e);
             }
         }
 
@@ -1216,9 +1481,28 @@
                     // 更新 notes 数组
                     notes = finalNotes;
 
-                    // 排序并保存
+                    // 排序
                     notes.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
-                    saveNotes();
+
+                    // 保存到 Dexie
+                    if (choice) {
+                        // 覆盖模式：先清空数据库，再批量添加
+                        db.notes.clear().then(() => {
+                            return db.notes.bulkPut(notes);
+                        }).then(() => {
+                            renderNoteList();
+                            els.dbStatus.textContent = `💾 已載入 ${notes.length} 筆筆記`;
+                        });
+                    } else {
+                        // 合并模式：只添加新的笔记
+                        const existingIds = new Set(notes.map(n => n.id));
+                        const newNotes = importedData.notes.filter(note => !existingIds.has(note.id));
+                        db.notes.bulkPut(newNotes).then(() => {
+                            renderNoteList();
+                            els.dbStatus.textContent = `💾 已載入 ${notes.length} 筆筆記`;
+                        });
+                    }
+
                     renderNoteList();
 
                     // 清除当前编辑
@@ -1418,6 +1702,11 @@
             toggleFullscreen(els.markmapSection, els.markmapFullscreenBtn);
         });
 
+        // Markmap 控制按钮事件
+        els.expandAllBtn.addEventListener('click', expandAllNodes);
+        els.collapseAllBtn.addEventListener('click', collapseAllNodes);
+        els.fitViewBtn.addEventListener('click', fitMarkmapView);
+
         // ESC 键关闭模态框或退出全屏
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
@@ -1457,10 +1746,12 @@
         });
 
         // Initialize
-        loadNotes();
-        loadEditorWidth();
-        initResizeHandle();
-        console.log('App ready!');
+        (async () => {
+            await loadNotes();
+            loadEditorWidth();
+            initResizeHandle();
+            console.log('App ready!');
+        })();
     </script>
 </body>
 </html>
