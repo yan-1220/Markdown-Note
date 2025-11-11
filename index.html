@@ -342,13 +342,19 @@
                     <button id="newNoteBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg mb-2">
                         ➕ 新增筆記
                     </button>
-                    <div class="flex gap-2">
+                    <div class="flex gap-2 mb-2">
                         <button id="exportBtn" class="flex-1 bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-3 rounded-lg text-sm">
                             📤 匯出
                         </button>
                         <button id="importBtn" class="flex-1 bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-3 rounded-lg text-sm">
                             📥 匯入
                         </button>
+                    </div>
+                    <button id="autoBackupBtn" class="w-full bg-orange-600 hover:bg-orange-700 text-white font-semibold py-2 px-3 rounded-lg text-sm">
+                        💾 設定自動備份
+                    </button>
+                    <div id="autoBackupStatus" class="mt-2 text-xs text-gray-400 text-center hidden">
+                        🔄 自動備份已啟用
                     </div>
                     <input type="file" id="importFileInput" accept=".json" class="hidden">
                 </div>
@@ -725,6 +731,10 @@
         db.version(1).stores({
             notes: 'id, title, content, createdAt, updatedAt'
         });
+        db.version(2).stores({
+            notes: 'id, title, content, createdAt, updatedAt',
+            settings: 'key, value' // 用于存储文件句柄等设置
+        });
 
         // State
         let notes = [];
@@ -772,7 +782,9 @@
             dbStatus: document.getElementById('dbStatus'),
             expandAllBtn: document.getElementById('expandAllBtn'),
             collapseAllBtn: document.getElementById('collapseAllBtn'),
-            fitViewBtn: document.getElementById('fitViewBtn')
+            fitViewBtn: document.getElementById('fitViewBtn'),
+            autoBackupBtn: document.getElementById('autoBackupBtn'),
+            autoBackupStatus: document.getElementById('autoBackupStatus')
         };
 
         // Dexie Database Functions
@@ -947,6 +959,11 @@
             notes.unshift(note);
             renderNoteList();
 
+            // 触发自动备份
+            if (autoBackupFileHandle) {
+                performAutoBackup().catch(err => console.error('Auto backup failed:', err));
+            }
+
             // 新建笔记时直接进入编辑模式
             currentNoteId = note.id;
             els.noteTitle.value = note.title;
@@ -1041,6 +1058,11 @@
             renderNoteList();
             updateTimestampDisplay(note);
 
+            // 触发自动备份（异步执行，不阻塞保存）
+            if (autoBackupFileHandle) {
+                performAutoBackup().catch(err => console.error('Auto backup failed:', err));
+            }
+
             // 显示保存状态
             const originalStatus = els.saveStatus.textContent;
             els.saveStatus.textContent = '已儲存 ✓';
@@ -1057,6 +1079,11 @@
 
             // 从本地数组删除
             notes = notes.filter(n => n.id !== currentNoteId);
+
+            // 触发自动备份
+            if (autoBackupFileHandle) {
+                performAutoBackup().catch(err => console.error('Auto backup failed:', err));
+            }
 
             currentNoteId = null;
             els.noteTitle.value = '';
@@ -1616,6 +1643,11 @@
 
                     renderNoteList();
 
+                    // 触发自动备份
+                    if (autoBackupFileHandle) {
+                        performAutoBackup().catch(err => console.error('Auto backup failed:', err));
+                    }
+
                     // 清除当前编辑
                     if (currentNoteId && !notes.find(n => n.id === currentNoteId)) {
                         currentNoteId = null;
@@ -1656,6 +1688,151 @@
             };
 
             reader.readAsText(file);
+        }
+
+        // Auto Backup Functions (File System Access API)
+        let autoBackupFileHandle = null;
+
+        // 检查 File System Access API 支持
+        function isFileSystemAccessSupported() {
+            return 'showSaveFilePicker' in window;
+        }
+
+        // 设置自动备份文件
+        async function setupAutoBackup() {
+            if (!isFileSystemAccessSupported()) {
+                alert('您的瀏覽器不支援自動備份功能\n\n' +
+                      '此功能需要 File System Access API 支援\n' +
+                      '請使用最新版本的 Chrome、Edge 或其他支援的瀏覽器');
+                return;
+            }
+
+            try {
+                // 生成默认文件名
+                const now = new Date();
+                const dateStr = now.toISOString().split('T')[0];
+                const suggestedName = `markdown-notes-auto-backup-${dateStr}.json`;
+
+                // 请求用户选择或创建备份文件
+                const fileHandle = await window.showSaveFilePicker({
+                    suggestedName: suggestedName,
+                    types: [{
+                        description: 'JSON Files',
+                        accept: { 'application/json': ['.json'] }
+                    }]
+                });
+
+                // 保存文件句柄到 IndexedDB
+                await db.settings.put({ key: 'autoBackupFileHandle', value: fileHandle });
+                autoBackupFileHandle = fileHandle;
+
+                // 立即执行一次备份
+                await performAutoBackup();
+
+                // 更新UI
+                els.autoBackupStatus.textContent = `🔄 自動備份已啟用 → ${fileHandle.name}`;
+                els.autoBackupStatus.classList.remove('hidden');
+                els.autoBackupStatus.classList.add('text-green-400');
+                els.autoBackupBtn.textContent = '💾 變更備份檔案';
+
+                console.log('Auto backup configured:', fileHandle.name);
+            } catch (error) {
+                if (error.name !== 'AbortError') {
+                    console.error('Setup auto backup error:', error);
+                    alert('設定自動備份失敗：' + error.message);
+                }
+            }
+        }
+
+        // 执行自动备份
+        async function performAutoBackup() {
+            if (!autoBackupFileHandle) {
+                return;
+            }
+
+            try {
+                // 检查权限
+                const permission = await autoBackupFileHandle.queryPermission({ mode: 'readwrite' });
+                if (permission !== 'granted') {
+                    const requestPermission = await autoBackupFileHandle.requestPermission({ mode: 'readwrite' });
+                    if (requestPermission !== 'granted') {
+                        console.warn('Auto backup permission denied');
+                        return;
+                    }
+                }
+
+                // 准备备份数据
+                const backupData = {
+                    version: '1.0',
+                    exportDate: new Date().toISOString(),
+                    notesCount: notes.length,
+                    notes: notes,
+                    autoBackup: true
+                };
+
+                // 写入文件
+                const writable = await autoBackupFileHandle.createWritable();
+                await writable.write(JSON.stringify(backupData, null, 2));
+                await writable.close();
+
+                console.log('Auto backup completed:', autoBackupFileHandle.name);
+
+                // 更新备份状态显示
+                const now = new Date();
+                const timeStr = now.toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' });
+                els.autoBackupStatus.textContent = `🔄 最後備份：${timeStr} → ${autoBackupFileHandle.name}`;
+            } catch (error) {
+                console.error('Auto backup error:', error);
+                // 如果出错，可能是权限问题，清除保存的句柄
+                if (error.name === 'NotAllowedError') {
+                    await db.settings.delete('autoBackupFileHandle');
+                    autoBackupFileHandle = null;
+                    els.autoBackupStatus.textContent = '❌ 自動備份失敗（權限不足）';
+                    els.autoBackupStatus.classList.remove('text-green-400');
+                    els.autoBackupStatus.classList.add('text-red-400');
+                }
+            }
+        }
+
+        // 加载并初始化自动备份
+        async function initAutoBackup() {
+            if (!isFileSystemAccessSupported()) {
+                console.log('File System Access API not supported');
+                els.autoBackupBtn.disabled = true;
+                els.autoBackupBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                els.autoBackupBtn.title = '您的瀏覽器不支援此功能';
+                return;
+            }
+
+            try {
+                // 从 IndexedDB 加载保存的文件句柄
+                const setting = await db.settings.get('autoBackupFileHandle');
+                if (setting && setting.value) {
+                    autoBackupFileHandle = setting.value;
+
+                    // 验证文件句柄是否仍然有效
+                    try {
+                        const permission = await autoBackupFileHandle.queryPermission({ mode: 'readwrite' });
+                        if (permission === 'granted' || permission === 'prompt') {
+                            // 更新UI
+                            els.autoBackupStatus.textContent = `🔄 自動備份已啟用 → ${autoBackupFileHandle.name}`;
+                            els.autoBackupStatus.classList.remove('hidden');
+                            els.autoBackupStatus.classList.add('text-green-400');
+                            els.autoBackupBtn.textContent = '💾 變更備份檔案';
+
+                            // 执行自动备份
+                            await performAutoBackup();
+                        }
+                    } catch (e) {
+                        // 文件句柄无效，清除
+                        console.warn('Saved file handle is invalid:', e);
+                        await db.settings.delete('autoBackupFileHandle');
+                        autoBackupFileHandle = null;
+                    }
+                }
+            } catch (error) {
+                console.error('Init auto backup error:', error);
+            }
         }
 
         // Help Modal Functions
@@ -1792,6 +1969,9 @@
         els.importBtn.addEventListener('click', importData);
         els.importFileInput.addEventListener('change', handleImportFile);
 
+        // Auto Backup events
+        els.autoBackupBtn.addEventListener('click', setupAutoBackup);
+
         // Help Modal events
         els.helpBtn.addEventListener('click', openHelpModal);
         els.closeHelpBtn.addEventListener('click', closeHelpModal);
@@ -1861,6 +2041,7 @@
             await loadNotes();
             loadEditorWidth();
             initResizeHandle();
+            await initAutoBackup(); // 初始化自动备份（如果已设置，会自动执行备份）
             console.log('App ready!');
         })();
     </script>
