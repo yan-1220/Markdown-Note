@@ -1111,9 +1111,9 @@
                 const markmapOptions = {
                     duration: 500,
                     nodeFont: '500 18px "Microsoft JhengHei", "Microsoft YaHei", -apple-system, BlinkMacSystemFont, sans-serif',
-                    paddingX: 20,
-                    spacingVertical: 20,
-                    spacingHorizontal: 120,
+                    paddingX: 25,
+                    spacingVertical: 25,
+                    spacingHorizontal: 130,
                     // 节点颜色函数
                     color: (node) => {
                         const depth = node.state?.depth || 0;
@@ -1124,24 +1124,24 @@
                         #${id} {
                             font-family: "Microsoft JhengHei", "Microsoft YaHei", sans-serif;
                         }
-                        /* 增大节点圆圈和点击区域 */
+                        /* 整个节点组可点击 */
+                        #${id} .markmap-node {
+                            cursor: pointer !important;
+                        }
+                        /* 增大节点圆圈 */
                         #${id} .markmap-node > circle {
                             fill: currentColor;
                             stroke: currentColor;
                             stroke-width: 3px;
                             filter: brightness(1.2) drop-shadow(0 0 12px currentColor);
-                            r: 8 !important;
+                            r: 10 !important;
                             cursor: pointer;
                             transition: all 0.3s ease;
                         }
-                        #${id} .markmap-node > circle:hover {
-                            r: 12 !important;
-                            filter: brightness(1.4) drop-shadow(0 0 20px currentColor);
-                            stroke-width: 4px;
-                        }
-                        /* 增加节点的可点击区域 */
-                        #${id} .markmap-node {
-                            cursor: pointer;
+                        #${id} .markmap-node:hover > circle {
+                            r: 14 !important;
+                            filter: brightness(1.5) drop-shadow(0 0 24px currentColor);
+                            stroke-width: 5px;
                         }
                         /* 强化线条可视性 */
                         #${id} .markmap-link {
@@ -1165,7 +1165,33 @@
                             stroke-width: 3px;
                             stroke-linecap: round;
                             stroke-linejoin: round;
-                            pointer-events: none;
+                            cursor: pointer !important;
+                            pointer-events: none !important;
+                            user-select: none;
+                            transition: all 0.2s ease;
+                        }
+                        /* 文字悬停效果 */
+                        #${id} .markmap-node:hover text {
+                            fill: #ffffff;
+                            stroke-width: 4px;
+                            filter: drop-shadow(0 0 8px currentColor);
+                        }
+                        /* 为节点添加隐形背景扩大点击区域 */
+                        #${id} .markmap-node foreignObject {
+                            cursor: pointer !important;
+                            pointer-events: none !important;
+                        }
+                        #${id} .markmap-node foreignObject > div {
+                            cursor: pointer !important;
+                            padding: 8px 12px;
+                            margin: -8px -12px;
+                            border-radius: 6px;
+                            transition: all 0.2s ease;
+                            pointer-events: none !important;
+                        }
+                        #${id} .markmap-node:hover foreignObject > div {
+                            background-color: rgba(255, 255, 255, 0.1);
+                            box-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
                         }
                         /* 代码样式 */
                         #${id} code {
@@ -1201,15 +1227,98 @@
                     markmapInstance = markmap.Markmap.create(els.markmapSvg, markmapOptions, root);
                 }
 
-                // 自动适配视图
+                // 自动适配视图并增强点击区域
                 setTimeout(() => {
                     if (markmapInstance && markmapInstance.fit) {
                         markmapInstance.fit();
                     }
-                }, 150);
+                    enhanceNodeClickArea();
+
+                    // 监听SVG点击事件，每次点击后重新增强点击区域
+                    els.markmapSvg.addEventListener('click', () => {
+                        setTimeout(() => {
+                            enhanceNodeClickArea();
+                        }, 600); // 等待动画完成
+                    });
+                }, 300);
             } catch (e) {
                 console.error('Markmap error:', e);
             }
+        }
+
+        // 添加节点点击区域增强
+        function enhanceNodeClickArea() {
+            setTimeout(() => {
+                const svg = els.markmapSvg;
+                const nodes = svg.querySelectorAll('.markmap-node');
+
+                console.log(`找到 ${nodes.length} 个节点`);
+
+                nodes.forEach((node, index) => {
+                    // 检查是否已经添加了点击区域
+                    if (node.querySelector('.click-area')) {
+                        console.log(`节点 ${index} 已有点击区域，跳过`);
+                        return;
+                    }
+
+                    try {
+                        // 获取节点的边界框
+                        const bbox = node.getBBox();
+
+                        // 创建一个大的透明矩形作为点击区域
+                        const clickArea = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                        clickArea.setAttribute('class', 'click-area');
+                        clickArea.setAttribute('x', bbox.x - 20);
+                        clickArea.setAttribute('y', bbox.y - 15);
+                        clickArea.setAttribute('width', bbox.width + 40);
+                        clickArea.setAttribute('height', bbox.height + 30);
+                        clickArea.setAttribute('fill', 'transparent');
+                        clickArea.setAttribute('cursor', 'pointer');
+                        clickArea.setAttribute('rx', '8');
+                        clickArea.style.pointerEvents = 'all';
+
+                        // 添加点击事件 - 模拟点击圆圈
+                        clickArea.addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            console.log(`点击了节点 ${index}`);
+
+                            // 找到这个节点的圆圈并触发点击
+                            const circle = node.querySelector('circle');
+                            if (circle) {
+                                console.log('触发圆圈点击');
+                                // 创建一个新的点击事件
+                                const clickEvent = new MouseEvent('click', {
+                                    bubbles: true,
+                                    cancelable: true,
+                                    view: window
+                                });
+                                circle.dispatchEvent(clickEvent);
+                            } else {
+                                console.log('未找到圆圈');
+                            }
+                        });
+
+                        // 添加悬停效果
+                        clickArea.addEventListener('mouseenter', () => {
+                            clickArea.setAttribute('fill', 'rgba(255, 255, 255, 0.08)');
+                            clickArea.setAttribute('stroke', 'rgba(255, 255, 255, 0.2)');
+                            clickArea.setAttribute('stroke-width', '2');
+                        });
+                        clickArea.addEventListener('mouseleave', () => {
+                            clickArea.setAttribute('fill', 'transparent');
+                            clickArea.removeAttribute('stroke');
+                            clickArea.removeAttribute('stroke-width');
+                        });
+
+                        // 将透明矩形插入到节点的最前面（作为背景）
+                        node.insertBefore(clickArea, node.firstChild);
+
+                        console.log(`节点 ${index} 添加点击区域成功`);
+                    } catch (e) {
+                        console.error(`节点 ${index} 添加点击区域失败:`, e);
+                    }
+                });
+            }, 400);
         }
 
         // Markmap 控制函数
@@ -1232,11 +1341,12 @@
                     expandRecursive(state.data);
                     markmapInstance.setData(state.data);
 
-                    // 展开后适配视图
+                    // 展开后适配视图并增强点击区域
                     setTimeout(() => {
                         if (markmapInstance.fit) {
                             markmapInstance.fit();
                         }
+                        enhanceNodeClickArea();
                     }, 300);
                 }
 
@@ -1266,11 +1376,12 @@
                     collapseRecursive(state.data);
                     markmapInstance.setData(state.data);
 
-                    // 折叠后适配视图
+                    // 折叠后适配视图并增强点击区域
                     setTimeout(() => {
                         if (markmapInstance.fit) {
                             markmapInstance.fit();
                         }
+                        enhanceNodeClickArea();
                     }, 300);
                 }
 
