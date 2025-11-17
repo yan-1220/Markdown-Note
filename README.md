@@ -1,8 +1,29 @@
 # 📝 Markdown Note Cloud
 
-一個純前端的 Markdown 筆記應用，使用瀏覽器本地儲存，支援深色模式與即時預覽。
+一個純前端的 Markdown 筆記應用，提供兩個版本滿足不同需求。
 
-## ✨ 功能特色
+## 🎯 兩個版本可選
+
+本項目現提供兩個版本的 Markdown 筆記應用：
+
+### 1. 雲端版本 (index.html) - 開箱即用
+- ✅ IndexedDB 儲存，無需配置
+- ✅ 思維導圖視圖（Markmap）
+- ✅ 所有現代瀏覽器支援
+- 👉 適合快速記錄、思維導圖、跨瀏覽器使用
+
+### 2. 本地文件版本 (index-local.html) - 專業管理 🆕
+- ✅ 本地 .md 文件儲存
+- ✅ 樹狀目錄結構（文件夾分類）
+- ✅ 與其他 Markdown 工具完全兼容
+- 👉 適合文件夾管理、版本控制、數據可移植
+
+**📊 詳細對比**: 查看 [VERSION_COMPARISON.md](VERSION_COMPARISON.md)
+**📖 本地版使用指南**: 查看 [LOCAL_VERSION_GUIDE.md](LOCAL_VERSION_GUIDE.md)
+
+---
+
+## ✨ 功能特色（雲端版本）
 
 - 📄 **Markdown 渲染** - 支援完整 Markdown 語法（包含表格）
 - ✏️ **雙模式切換** - Markdown 閱讀模式 ⇄ 即時編輯模式
@@ -138,18 +159,33 @@ const hello = "world";
 
 ```
 markdown-note-cloud/
-├── index.html              # 主要應用程式（單一檔案，包含所有功能）
-├── .gitignore             # Git 忽略檔案
-├── README.md              # 專案說明（本檔案）
-├── CLAUDE.md              # Claude Code 開發指引
-├── plan.txt               # 專案規格書
-├── PROJECT_SETUP_GUIDE.md # 開發環境設定指引
-├── GITHUB_UPLOAD_GUIDE.md # GitHub 上傳指引
-├── app.js.backup          # 原始分離的 JS 檔案（備份）
-└── index.html.backup      # 原始 HTML 檔案（備份）
+├── index.html                 # 雲端版本（IndexedDB + 思維導圖）
+├── index-local.html           # 本地文件版本（樹狀目錄 + .md 文件）🆕
+├── filesystem-manager.js      # 文件系統管理器 🆕
+├── .gitignore                 # Git 忽略檔案
+├── README.md                  # 專案總覽（本檔案）
+├── VERSION_COMPARISON.md      # 兩版本詳細對比 🆕
+├── LOCAL_VERSION_GUIDE.md     # 本地版本使用指南 🆕
+├── CLAUDE.md                  # Claude Code 開發指引
+├── plan.txt                   # 專案規格書（中文）
+├── PROJECT_SETUP_GUIDE.md     # 開發環境設定指引
+├── GITHUB_UPLOAD_GUIDE.md     # GitHub 上傳指引
+├── app.js.backup              # 原始分離的 JS 檔案（備份）
+└── index.html.backup          # 原始 HTML 檔案（備份）
 ```
 
-**注意**：應用程式的所有功能都整合在 `index.html` 中，是一個完整的單頁應用（SPA）。
+### 核心文件說明
+
+| 文件 | 說明 | 用途 |
+|------|------|------|
+| `index.html` | 雲端版本 | 開箱即用，支援思維導圖 |
+| `index-local.html` | 本地文件版本 | 樹狀目錄，本地 .md 文件 |
+| `filesystem-manager.js` | 文件系統管理模組 | 處理本地文件讀寫操作 |
+
+**選擇建議**：
+- 需要快速使用 → 使用 `index.html`
+- 需要文件夾管理 → 使用 `index-local.html`
+- 詳細對比 → 查看 `VERSION_COMPARISON.md`
 
 ## 🚧 未來功能
 
