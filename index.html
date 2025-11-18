@@ -494,6 +494,11 @@
 
                 <!-- Modal Content -->
                 <div class="p-6 text-gray-200 space-y-6">
+                    <!-- 開發者資訊 -->
+                    <div class="text-left py-2 border-b border-gray-600">
+                        <p class="text-gray-300">開發者 - <span class="text-blue-400 font-semibold">QA陳彥良</span></p>
+                    </div>
+
                     <!-- 功能介紹 -->
                     <section>
                         <h3 class="text-xl font-bold text-blue-400 mb-3">✨ 功能特色</h3>
@@ -501,6 +506,8 @@
                             <li><strong class="text-green-400">🚀 IndexedDB 儲存：</strong>開箱即用，無需設定，自動儲存所有筆記</li>
                             <li>📄 支援完整 GitHub Flavored Markdown (GFM) 語法</li>
                             <li>🗺️ 思維導圖視圖：將筆記轉換為互動式心智圖</li>
+                            <li>🏷️ 標籤管理：支援多標籤分類，自動完成輸入，按標籤篩選筆記</li>
+                            <li>📋 筆記總覽：緊湊式列表顯示所有筆記，支援排序和篩選</li>
                             <li>⛶ 全屏模式：Markdown 與思維導圖可切換為全瀏覽器範圍查看</li>
                             <li>↔️ 可調整編輯器與預覽區域的寬度比例，雙擊重置</li>
                             <li>🎨 程式碼語法高亮：支援 180+ 種程式語言</li>
@@ -561,7 +568,30 @@
                             </div>
 
                             <div>
-                                <h4 class="font-semibold text-gray-100 mb-2">5️⃣ 刪除筆記</h4>
+                                <h4 class="font-semibold text-gray-100 mb-2">5️⃣ 標籤管理</h4>
+                                <p class="text-gray-300 ml-4">
+                                    • 選擇筆記後，在標題下方的標籤輸入框中輸入標籤名稱<br>
+                                    • 點擊輸入框會顯示已存在的標籤列表（按 a-z 排序）<br>
+                                    • 可以選擇現有標籤或輸入新標籤名稱<br>
+                                    • 按 Enter 鍵新增標籤<br>
+                                    • 點擊標籤上的「×」刪除該標籤<br>
+                                    • 使用左側面板的標籤篩選器，可以按標籤篩選筆記
+                                </p>
+                            </div>
+
+                            <div>
+                                <h4 class="font-semibold text-gray-100 mb-2">6️⃣ 筆記總覽</h4>
+                                <p class="text-gray-300 ml-4">
+                                    • 點擊左側面板的「📋 筆記總覽」按鈕<br>
+                                    • 以緊湊列表形式查看所有筆記<br>
+                                    • 顯示筆記標題、創建日期、更新日期和標籤<br>
+                                    • 支援搜尋和排序功能<br>
+                                    • 點擊筆記標題即可開啟該筆記
+                                </p>
+                            </div>
+
+                            <div>
+                                <h4 class="font-semibold text-gray-100 mb-2">7️⃣ 刪除筆記</h4>
                                 <p class="text-gray-300 ml-4">選擇筆記後，點擊右下角「🗑️ 刪除筆記」按鈕，確認後即可刪除。</p>
                             </div>
                         </div>
@@ -2197,14 +2227,14 @@
             const notesHTML = sortedNotes.map(note => {
                 const title = note.title || '無標題';
                 const highlightedTitle = highlightText(title, overviewSearchQuery);
-                const createdDate = new Date(note.createdAt).toLocaleString('zh-TW');
-                const updatedDate = new Date(note.updatedAt).toLocaleString('zh-TW');
+                const createdDate = new Date(note.createdAt).toLocaleDateString('zh-TW');
+                const updatedDate = new Date(note.updatedAt).toLocaleDateString('zh-TW');
                 const isCurrentNote = note.id === currentNoteId;
                 const tags = note.tags || [];
                 const tagsHTML = tags.length > 0 ? `
-                    <div class="flex flex-wrap gap-1 mt-2">
+                    <div class="flex flex-wrap gap-1 mt-1">
                         ${tags.map(tag => `
-                            <span class="inline-block px-2 py-1 bg-blue-600 text-xs text-white rounded-full">
+                            <span class="inline-block px-1.5 py-0.5 bg-blue-600 text-[10px] text-white rounded-full">
                                 ${escapeHtml(tag)}
                             </span>
                         `).join('')}
@@ -2212,21 +2242,23 @@
                 ` : '';
 
                 return `
-                    <div class="bg-gray-700 rounded-lg p-4 mb-3 transition-colors ${isCurrentNote ? 'ring-2 ring-blue-500' : ''} group">
-                        <div class="flex justify-between items-start gap-3">
+                    <div class="bg-gray-700 rounded-lg p-2.5 mb-2 transition-colors ${isCurrentNote ? 'ring-2 ring-blue-500' : ''} group">
+                        <div class="flex justify-between items-start gap-2">
                             <div class="flex-1 min-w-0">
-                                <h3 class="text-lg font-semibold text-gray-100 mb-2 truncate cursor-pointer hover:text-blue-400 transition-colors group-hover:underline"
-                                    data-note-id="${note.id}"
-                                    title="點擊開啟筆記">
-                                    ${highlightedTitle}
-                                </h3>
-                                ${tagsHTML}
-                                <div class="text-xs text-gray-400 space-y-1 mt-2">
-                                    <div>📅 創建：${createdDate}</div>
-                                    <div>🔄 更新：${updatedDate}</div>
+                                <div class="flex flex-wrap items-baseline gap-x-2 gap-y-1 mb-1">
+                                    <h3 class="text-base font-semibold text-gray-100 cursor-pointer hover:text-blue-400 transition-colors group-hover:underline"
+                                        data-note-id="${note.id}"
+                                        title="點擊開啟筆記">
+                                        ${highlightedTitle}
+                                    </h3>
+                                    <div class="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-gray-400">
+                                        <span class="whitespace-nowrap">創建 ${createdDate}</span>
+                                        <span class="whitespace-nowrap">更新 ${updatedDate}</span>
+                                    </div>
                                 </div>
+                                ${tagsHTML}
                             </div>
-                            ${isCurrentNote ? '<div class="text-blue-400 text-sm font-semibold whitespace-nowrap">✓ 當前筆記</div>' : ''}
+                            ${isCurrentNote ? '<div class="text-blue-400 text-xs font-semibold whitespace-nowrap">✓ 當前</div>' : ''}
                         </div>
                     </div>
                 `;
