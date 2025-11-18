@@ -402,9 +402,12 @@
                                 <div id="tagsContainer" class="flex flex-wrap gap-1">
                                     <!-- Tags will be displayed here -->
                                 </div>
-                                <input id="tagInput" type="text" placeholder="+ 標籤"
+                                <input id="tagInput" type="text" placeholder="+ 標籤" list="tagSuggestions"
                                        class="w-16 px-2 py-0.5 text-xs bg-gray-700/50 text-gray-100 placeholder-gray-500 rounded-md outline-none focus:ring-1 focus:ring-blue-500 border border-gray-600/50 focus:border-blue-500/50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                                        disabled>
+                                <datalist id="tagSuggestions">
+                                    <!-- Tag suggestions will be populated dynamically -->
+                                </datalist>
                             </div>
                             <div id="noteTimestamp" class="text-xs text-gray-500 flex items-center gap-2 hidden">
                                 <span id="createdTime" class="flex items-center gap-1">📅</span>
@@ -910,6 +913,7 @@
                 els.dbStatus.classList.add('text-green-400');
 
                 renderNoteList();
+                updateTagSuggestions(); // 初始化标签建议
 
                 // 检查是否有 localStorage 的旧数据需要迁移
                 await migrateFromLocalStorage();
@@ -1120,6 +1124,27 @@
         }
 
         // Tag Management Functions
+        function updateTagSuggestions() {
+            // Collect all unique tags from all notes
+            const allTags = new Set();
+            notes.forEach(note => {
+                if (note.tags && Array.isArray(note.tags)) {
+                    note.tags.forEach(tag => allTags.add(tag));
+                }
+            });
+
+            // Sort tags alphabetically (a-z)
+            const sortedTags = Array.from(allTags).sort((a, b) => a.localeCompare(b));
+
+            // Update datalist options
+            const datalist = document.getElementById('tagSuggestions');
+            if (datalist) {
+                datalist.innerHTML = sortedTags.map(tag =>
+                    `<option value="${escapeHtml(tag)}">`
+                ).join('');
+            }
+        }
+
         function renderNoteTags(note) {
             if (!note) return;
 
@@ -1168,6 +1193,7 @@
             renderNoteTags(note);
             renderNoteList();
             renderOverviewNotesList(); // 更新总览
+            updateTagSuggestions(); // 更新标签建议
         }
 
         async function removeTag(tag) {
@@ -1186,6 +1212,7 @@
             // 重新渲染
             renderNoteTags(note);
             renderNoteList();
+            updateTagSuggestions(); // 更新标签建议
             renderOverviewNotesList(); // 更新总览
         }
 
@@ -2460,7 +2487,11 @@
             renderMarkdown(e.target.value);
         });
 
-        // Tag input event
+        // Tag input events
+        els.tagInput.addEventListener('focus', () => {
+            updateTagSuggestions(); // 聚焦时更新标签建议
+        });
+
         els.tagInput.addEventListener('keypress', async (e) => {
             if (e.key === 'Enter') {
                 e.preventDefault();
