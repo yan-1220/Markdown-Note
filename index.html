@@ -327,6 +327,36 @@
         body.resizing * {
             cursor: col-resize !important;
         }
+
+        /* Zoom controls styling */
+        .zoom-btn {
+            font-weight: 600;
+            min-width: 48px;
+            text-align: center;
+        }
+
+        .zoom-btn:hover {
+            box-shadow: 0 0 8px rgba(59, 130, 246, 0.3);
+        }
+
+        /* Markdown preview zoom and pan effect */
+        .markdown-preview {
+            transform-origin: top left;
+            transition: transform 0.2s ease-out;
+            cursor: default;
+            width: fit-content;
+            min-width: 100%;
+        }
+
+        .markdown-preview.dragging {
+            cursor: grabbing !important;
+            transition: none;
+            user-select: none;
+        }
+
+        .markdown-preview.zoomed {
+            cursor: grab;
+        }
     </style>
 </head>
 <body class="bg-gray-900">
@@ -429,9 +459,20 @@
                     <div id="previewSection" class="flex-1 flex flex-col">
                         <div class="px-3 py-1.5 bg-gray-900 border-b border-gray-700 flex justify-between items-center">
                             <span class="text-xs font-medium text-gray-400">📄 Markdown</span>
-                            <button id="previewFullscreenBtn" class="fullscreen-btn text-gray-400 hover:text-gray-200 text-base" title="全屏查看">
-                                ⛶
-                            </button>
+                            <div class="flex items-center gap-1">
+                                <button id="zoomOutBtn" class="zoom-btn bg-gray-700 hover:bg-gray-600 text-gray-300 text-xs py-0.5 px-2 rounded transition-colors" title="縮小 (Ctrl/Cmd + -)">
+                                    🔍−
+                                </button>
+                                <button id="zoomResetBtn" class="zoom-btn bg-gray-700 hover:bg-gray-600 text-gray-300 text-xs py-0.5 px-2 rounded transition-colors" title="重置縮放">
+                                    <span id="zoomLevel">100%</span>
+                                </button>
+                                <button id="zoomInBtn" class="zoom-btn bg-gray-700 hover:bg-gray-600 text-gray-300 text-xs py-0.5 px-2 rounded transition-colors" title="放大 (Ctrl/Cmd + +)">
+                                    🔍+
+                                </button>
+                                <button id="previewFullscreenBtn" class="fullscreen-btn text-gray-400 hover:text-gray-200 text-base" title="全屏查看">
+                                    ⛶
+                                </button>
+                            </div>
                         </div>
                         <div id="markdownPreview" class="fullscreen-content flex-1 p-4 overflow-y-auto markdown-preview text-gray-100">
                             <p class="text-gray-500">Markdown 渲染區域</p>
@@ -505,6 +546,7 @@
                         <ul class="list-disc list-inside space-y-2 text-gray-300">
                             <li><strong class="text-green-400">🚀 IndexedDB 儲存：</strong>開箱即用，無需設定，自動儲存所有筆記</li>
                             <li>📄 支援完整 GitHub Flavored Markdown (GFM) 語法</li>
+                            <li>🔍 縮放與拖動：滑鼠滾輪縮放 (50%-200%)，放大後可拖動查看，支援鍵盤快捷鍵</li>
                             <li>🗺️ 思維導圖視圖：將筆記轉換為互動式心智圖</li>
                             <li>🏷️ 標籤管理：支援多標籤分類，自動完成輸入，按標籤篩選筆記</li>
                             <li>📋 筆記總覽：緊湊式列表顯示所有筆記，支援排序和篩選</li>
@@ -568,7 +610,28 @@
                             </div>
 
                             <div>
-                                <h4 class="font-semibold text-gray-100 mb-2">5️⃣ 標籤管理</h4>
+                                <h4 class="font-semibold text-gray-100 mb-2">5️⃣ 縮放與拖動功能</h4>
+                                <p class="text-gray-300 ml-4">
+                                    • 在 Markdown 預覽區域的工具欄中，可以使用縮放控制按鈕<br>
+                                    • 🔍+ 放大：增加內容顯示大小（最大 200%）<br>
+                                    • 🔍− 縮小：減少內容顯示大小（最小 50%）<br>
+                                    • 點擊百分比按鈕可重置為 100%<br>
+                                    • <strong>鍵盤快捷鍵：</strong><br>
+                                    &nbsp;&nbsp;- Ctrl/Cmd + Plus (+) 放大<br>
+                                    &nbsp;&nbsp;- Ctrl/Cmd + Minus (-) 縮小<br>
+                                    &nbsp;&nbsp;- Ctrl/Cmd + 0 重置為 100%<br>
+                                    • <strong>滑鼠滾輪縮放：</strong><br>
+                                    &nbsp;&nbsp;- 按住 Ctrl/Cmd + 滾動滑鼠滾輪可縮放<br>
+                                    &nbsp;&nbsp;- 縮放會以滑鼠指標位置為中心<br>
+                                    • <strong>拖動查看：</strong><br>
+                                    &nbsp;&nbsp;- 當內容放大後（>100%），可直接拖動內容查看不同位置<br>
+                                    &nbsp;&nbsp;- 滑鼠游標會變成手掌圖示，點擊並拖動即可<br>
+                                    • 縮放比例會自動保存，下次開啟時保持相同設定
+                                </p>
+                            </div>
+
+                            <div>
+                                <h4 class="font-semibold text-gray-100 mb-2">6️⃣ 標籤管理</h4>
                                 <p class="text-gray-300 ml-4">
                                     • 選擇筆記後，在標題下方的標籤輸入框中輸入標籤名稱<br>
                                     • 點擊輸入框會顯示已存在的標籤列表（按 a-z 排序）<br>
@@ -580,7 +643,7 @@
                             </div>
 
                             <div>
-                                <h4 class="font-semibold text-gray-100 mb-2">6️⃣ 筆記總覽</h4>
+                                <h4 class="font-semibold text-gray-100 mb-2">7️⃣ 筆記總覽</h4>
                                 <p class="text-gray-300 ml-4">
                                     • 點擊左側面板的「📋 筆記總覽」按鈕<br>
                                     • 以緊湊列表形式查看所有筆記<br>
@@ -591,7 +654,7 @@
                             </div>
 
                             <div>
-                                <h4 class="font-semibold text-gray-100 mb-2">7️⃣ 刪除筆記</h4>
+                                <h4 class="font-semibold text-gray-100 mb-2">8️⃣ 刪除筆記</h4>
                                 <p class="text-gray-300 ml-4">選擇筆記後，點擊右下角「🗑️ 刪除筆記」按鈕，確認後即可刪除。</p>
                             </div>
                         </div>
@@ -876,6 +939,12 @@
         let markmapInstance = null; // Markmap实例
         const markmapTransformer = typeof markmap !== 'undefined' ? new markmap.Transformer() : null;
         let editorWidth = 50; // 编辑器宽度百分比，默认50%
+        let zoomScale = 1.0; // Markdown预览缩放比例，默认100%
+        let panX = 0; // 平移X坐标
+        let panY = 0; // 平移Y坐标
+        let isDragging = false; // 是否正在拖动
+        let dragStartX = 0; // 拖动起始X坐标
+        let dragStartY = 0; // 拖动起始Y坐标
 
         // Elements
         const els = {
@@ -928,7 +997,11 @@
             overviewSearchCount: document.getElementById('overviewSearchCount'),
             tagInput: document.getElementById('tagInput'),
             tagsContainer: document.getElementById('tagsContainer'),
-            tagFilter: document.getElementById('tagFilter')
+            tagFilter: document.getElementById('tagFilter'),
+            zoomInBtn: document.getElementById('zoomInBtn'),
+            zoomOutBtn: document.getElementById('zoomOutBtn'),
+            zoomResetBtn: document.getElementById('zoomResetBtn'),
+            zoomLevel: document.getElementById('zoomLevel')
         };
 
         // Dexie Database Functions
@@ -2343,6 +2416,125 @@
             }
         }
 
+        // Zoom Functions
+        function loadZoomScale() {
+            // 从localStorage加载缩放比例
+            const savedZoom = localStorage.getItem('markdownZoomScale');
+            if (savedZoom) {
+                zoomScale = parseFloat(savedZoom);
+                applyZoom();
+            }
+        }
+
+        function saveZoomScale() {
+            // 保存缩放比例到localStorage
+            localStorage.setItem('markdownZoomScale', zoomScale.toString());
+        }
+
+        function applyZoom() {
+            // 应用缩放和平移到Markdown预览区域
+            els.markdownPreview.style.transform = `translate(${panX}px, ${panY}px) scale(${zoomScale})`;
+            els.zoomLevel.textContent = `${Math.round(zoomScale * 100)}%`;
+
+            // 更新cursor样式
+            if (zoomScale > 1.0) {
+                els.markdownPreview.classList.add('zoomed');
+            } else {
+                els.markdownPreview.classList.remove('zoomed');
+                // 重置平移
+                panX = 0;
+                panY = 0;
+            }
+        }
+
+        function zoomIn() {
+            // 放大，最大200%
+            if (zoomScale < 2.0) {
+                zoomScale = Math.min(2.0, zoomScale + 0.1);
+                applyZoom();
+                saveZoomScale();
+            }
+        }
+
+        function zoomOut() {
+            // 缩小，最小50%
+            if (zoomScale > 0.5) {
+                zoomScale = Math.max(0.5, zoomScale - 0.1);
+                applyZoom();
+                saveZoomScale();
+            }
+        }
+
+        function zoomReset() {
+            // 重置为100%
+            zoomScale = 1.0;
+            panX = 0;
+            panY = 0;
+            applyZoom();
+            saveZoomScale();
+        }
+
+        // Wheel Zoom Function
+        function handleWheelZoom(e) {
+            // 只在按住Ctrl/Cmd时才缩放
+            if (e.ctrlKey || e.metaKey) {
+                e.preventDefault();
+
+                // 获取鼠标位置相对于预览区域的坐标
+                const rect = els.markdownPreview.getBoundingClientRect();
+                const mouseX = e.clientX - rect.left;
+                const mouseY = e.clientY - rect.top;
+
+                // 计算缩放前的内容坐标
+                const contentX = (mouseX - panX) / zoomScale;
+                const contentY = (mouseY - panY) / zoomScale;
+
+                // 根据滚轮方向调整缩放
+                const delta = e.deltaY > 0 ? -0.1 : 0.1;
+                const newScale = Math.min(2.0, Math.max(0.5, zoomScale + delta));
+
+                if (newScale !== zoomScale) {
+                    zoomScale = newScale;
+
+                    // 调整平移以保持鼠标位置不变
+                    if (zoomScale > 1.0) {
+                        panX = mouseX - contentX * zoomScale;
+                        panY = mouseY - contentY * zoomScale;
+                    }
+
+                    applyZoom();
+                    saveZoomScale();
+                }
+            }
+        }
+
+        // Drag Functions
+        function startDrag(e) {
+            // 只在缩放时才允许拖动
+            if (zoomScale > 1.0) {
+                isDragging = true;
+                dragStartX = e.clientX - panX;
+                dragStartY = e.clientY - panY;
+                els.markdownPreview.classList.add('dragging');
+            }
+        }
+
+        function doDrag(e) {
+            if (isDragging) {
+                e.preventDefault();
+                panX = e.clientX - dragStartX;
+                panY = e.clientY - dragStartY;
+                applyZoom();
+            }
+        }
+
+        function endDrag() {
+            if (isDragging) {
+                isDragging = false;
+                els.markdownPreview.classList.remove('dragging');
+            }
+        }
+
         // Resize Handle Functions
         function loadEditorWidth() {
             const saved = localStorage.getItem('editor-width');
@@ -2472,13 +2664,43 @@
             toggleFullscreen(els.markmapSection, els.markmapFullscreenBtn);
         });
 
+        // Zoom events
+        els.zoomInBtn.addEventListener('click', zoomIn);
+        els.zoomOutBtn.addEventListener('click', zoomOut);
+        els.zoomResetBtn.addEventListener('click', zoomReset);
+
+        // Wheel zoom event
+        els.markdownPreview.addEventListener('wheel', handleWheelZoom, { passive: false });
+
+        // Drag events
+        els.markdownPreview.addEventListener('mousedown', startDrag);
+        document.addEventListener('mousemove', doDrag);
+        document.addEventListener('mouseup', endDrag);
+
         // Markmap 控制按钮事件
         els.expandAllBtn.addEventListener('click', expandAllNodes);
         els.collapseAllBtn.addEventListener('click', collapseAllNodes);
         els.fitViewBtn.addEventListener('click', fitMarkmapView);
 
-        // ESC 键关闭模态框或退出全屏
+        // ESC 键关闭模态框或退出全屏，Ctrl/Cmd + Plus/Minus 缩放
         document.addEventListener('keydown', (e) => {
+            // 缩放快捷键 (Ctrl/Cmd + Plus/Minus/0)
+            if ((e.ctrlKey || e.metaKey) && !e.shiftKey) {
+                if (e.key === '+' || e.key === '=') {
+                    e.preventDefault();
+                    zoomIn();
+                    return;
+                } else if (e.key === '-' || e.key === '_') {
+                    e.preventDefault();
+                    zoomOut();
+                    return;
+                } else if (e.key === '0') {
+                    e.preventDefault();
+                    zoomReset();
+                    return;
+                }
+            }
+
             if (e.key === 'Escape') {
                 // 优先关闭帮助模态框
                 if (!els.helpModal.classList.contains('hidden')) {
@@ -2539,6 +2761,7 @@
         (async () => {
             await loadNotes();
             loadEditorWidth();
+            loadZoomScale(); // 加载缩放比例
             initResizeHandle();
             await initAutoBackup(); // 初始化自动备份（如果已设置，会自动执行备份）
             console.log('App ready!');
